@@ -9,6 +9,20 @@
   "compatibility_date": "2025-10-14",
   "observability": {
     "enabled": true
+  },
+  "env": {
+    "test": {
+      "name": "quicktalog-backend-test",
+      "vars": {
+        "ENV": "test"
+      }
+    },
+    "prod": {
+      "name": "quicktalog-backend",
+      "vars": {
+        "ENV": "prod"
+      }
+    }
   }
   /**
    * Smart Placement
