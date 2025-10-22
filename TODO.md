@@ -1,0 +1,2 @@
+- Authorization
+- Route of service on api.quicktalog.app

@@ -1,5 +1,5 @@
 import { Bool, OpenAPIRoute } from "chanfana";
-import { GenerationRequestSchema, type AppContext } from "../types";
+import { AIGenerationRequestSchema, type AppContext } from "../types";
 import { chatCompletion } from "../lib/deepseek";
 import z from "zod";
 
@@ -11,7 +11,7 @@ export class AllAnalyticsProccessing extends OpenAPIRoute {
       body: {
         content: {
           "application/json": {
-            schema: GenerationRequestSchema,
+            schema: AIGenerationRequestSchema,
           },
         },
       },

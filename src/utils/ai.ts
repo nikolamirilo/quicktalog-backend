@@ -3,39 +3,14 @@ import {
   fetchImageFromUnsplash,
   layouts,
 } from "@quicktalog/common";
-import { baseSchema } from ".";
+import { baseSchema, layoutData } from ".";
 import { GenerationRequest } from "../types";
-
-export const generateImages = async (
-  data: CatalogueCategory[]
-): Promise<void> => {
-  // Use Promise.all for concurrent image fetching instead of sequential
-  const imagePromises = data
-    .filter((category) => category.layout !== "variant_3")
-    .flatMap((category) =>
-      category.items.map(async (item) => {
-        try {
-          item.image = await fetchImageFromUnsplash(item.name);
-        } catch (error) {
-          console.warn(`Failed to fetch image for ${item.name}:`, error);
-          item.image = "";
-        }
-      })
-    );
-
-  await Promise.all(imagePromises);
-};
 
 export function generatePromptForAI(
   inputText: string,
   formData: GenerationRequest["formData"],
   shouldGenerateImages: boolean
 ) {
-  const layoutData = layouts.map((l) => ({
-    key: l.key,
-    description: l.description,
-  }));
-
   return `
     Role: You are an expert in creating price lists/catalogues (restaurant menus, beauty center service offer, product price list, etc.).
     Based on the following prompt, generate a complete service offer configuration in JSON format.
@@ -43,7 +18,9 @@ export function generatePromptForAI(
     
     Prompt: ${inputText}
     
-    Schema: ${JSON.stringify(baseSchema)}
+    Schema: ${JSON.stringify(
+      baseSchema
+    )} - response should be in this format without additional texts (just array of items)
 
     ${
       shouldGenerateImages == true

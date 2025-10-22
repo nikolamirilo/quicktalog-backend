@@ -1,4 +1,4 @@
-import { baseCategorySchema } from '.';
+import { baseCategorySchema, layoutData } from ".";
 
 export function generatePromptForCategoryDetection(ocrText: string): string {
   return `
@@ -10,7 +10,7 @@ export function generatePromptForCategoryDetection(ocrText: string): string {
     IMPORTANT REQUIREMENTS:
     1. Return ONLY a JSON object with this structure: { "chunks": ["chunk1", "chunk2", ...] }
     2. Each chunk should contain all text related to one category (including the category name)
-    3. Identify product/service categories like: breakfast, lunch, dinner, drinks, appetizers, desserts, wellness services, beauty treatments, laptops, mobile phones, etc.
+    3. Identify product/service categories like: breakfast, lunch, dinner, drinks, appetizers, desserts, wellness services, beauty treatments, laptops, mobile phones, etc. CATEGORY NAME MUST BE UNIQUE IN CATALOGUE!!! It is not allowed to have 2 categories with same name!!
     4. If no clear categories are found, group similar items together logically
     5. Each chunk should be a complete text section that includes:
        - The category name/title
@@ -19,6 +19,9 @@ export function generatePromptForCategoryDetection(ocrText: string): string {
     6. Do not modify the original text content, just split it appropriately
     7. Return ONLY the JSON object, no additional text or formatting
     8. Start your response directly with { and end with }
+    9. Category name must be unique per catalogue!!!. Merge multiple categories if they are named the same and if make sense.
+    10. Create new category chunk if it makes sense to have new category depending on the input data
+    11. Remove from input data information which is not related to services/products (address, legal info, description of fascility, links, etc.)
     
     Example output format:
     {
@@ -35,6 +38,7 @@ export function generatePromptForCategoryProcessing(
   categoryChunk: string,
   formData: any,
   order: number,
+  shouldGenerateImages: boolean
 ): string {
   return `
     Role: You are an expert in creating service category configurations.
@@ -45,16 +49,26 @@ export function generatePromptForCategoryProcessing(
     Schema for single category: ${JSON.stringify(baseCategorySchema)}
     
     General information about service catalogue: ${JSON.stringify(formData)}
+
+    ${
+      shouldGenerateImages == true
+        ? `Layouts keys and description of each variant: ${JSON.stringify(
+            layoutData
+          )}. According to it use different variants for different purpose. For drinks for example use without image.`
+        : "For category layout always use value 'variant_3'"
+    }
     
     IMPORTANT REQUIREMENTS:
     0. If category name/item name/item description contain some strange words (e.g. "Jelapogodnazavoganje") correct them to what makes sense (e.g. "Jela pogodna za vegetarijance"). So make corrections in text to be correct on semantic and grammar side and to be clear for customer.
     1. Return ONLY the JSON object for ONE category, no additional text or formatting
     2. Start your response directly with { and end with }
     3. Extract the category name from the text chunk
-    4. Set layout to "variant_3"
+    4.
     5. Set order to ${order}
     6. Create items array with all items found in this category chunk
-    7. If prices are missing, estimate reasonable prices based on currency: ${formData.currency}
+    7. If prices are missing, estimate reasonable prices based on currency: ${
+      formData.currency
+    }
     8. Service should be created in the language and alphabet of the text
     9. Ensure all strings are properly escaped and contain no special characters like /,-,",' that could break JSON
     10. Item names should be full descriptive names
@@ -80,7 +94,9 @@ export function generatePromptForCategoryProcessing(
 export function generateOrderPrompt(items, formData: any): string {
   return `You are an expert in organizing service or menu categories to optimize the customer browsing experience.
 
-**Task**: Reorder and, if necessary, rename the categories in the provided items array to create a logical, intuitive flow for customers browsing a ${formData.title || 'catalogue'}.
+**Task**: Reorder and, if necessary, rename the categories in the provided items array to create a logical, intuitive flow for customers browsing a ${
+    formData.title || "catalogue"
+  }.
 
 **Input Categories**: ${JSON.stringify(items.map((category) => category.name))}
 
@@ -100,7 +116,9 @@ export function generateOrderPrompt(items, formData: any): string {
 2. Match the input array length (${items.length} categories).
 3. Preserve exact spelling of input category names unless renaming is needed.
 4. Ensure category names:
-   - Are in ${formData.language || 'English'} with consistent capitalization (e.g., First letter capitalized, rest lowercase).
+   - Are in ${
+     formData.language || "English"
+   } with consistent capitalization (e.g., First letter capitalized, rest lowercase).
    - Are clear, unique, and self-explanatory.
    - Contain no special characters (e.g., /, -, ", ').
    - Are semantically and grammatically appropriate for the catalogue context.

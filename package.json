@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@quicktalog/common": "^1.3.0",
+    "@supabase/supabase-js": "^2.76.1",
     "chanfana": "^2.6.3",
     "hono": "^4.6.20",
     "openai": "^6.6.0",
