@@ -9,6 +9,7 @@
   "observability": {
     "enabled": true
   },
+  "name": "quicktalog-backend-test",
   "env": {
     "test": {
       "name": "quicktalog-backend-test",
