@@ -7,7 +7,7 @@ import { generateImage } from "../utils";
 export class DailySubscriptionCheck extends OpenAPIRoute {
   schema = {
     tags: ["Subscriptions"],
-    summary: "Daily Subscription Check Job",
+    summary: "Daily Subscription Proccessing Job",
     request: {
       body: {
         content: {
