@@ -35,7 +35,6 @@ export class DailySubscriptionCheck extends OpenAPIRoute {
   async handle(c: AppContext) {
     const data = await this.getValidatedData<typeof this.schema>();
     const { prompt } = data.body;
-    // const response = await chatCompletion(prompt, c.env.DEEPSEEK_API_KEY);
     const res = await generateImage(prompt, c.env);
     return c.json({
       success: true,
