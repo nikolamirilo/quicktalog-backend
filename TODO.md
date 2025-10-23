@@ -1,2 +1,4 @@
-- Authorization
-- Route of service on api.quicktalog.app
+- Authorization service (Token)
+- Route of service on backend.quicktalog.app
+- Incorporate environment variables
+- Analytics and subscription endpoints
