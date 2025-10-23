@@ -28,4 +28,7 @@ jobs:
       - name: Deploy to Cloudflare Workers (Test)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: npx wrangler deploy --env test
+          GIT_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          echo "Deploying with commit message: $GIT_COMMIT_MESSAGE"
+          npx wrangler deploy --env test --message "$GIT_COMMIT_MESSAGE"
