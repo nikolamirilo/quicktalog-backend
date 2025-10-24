@@ -1,5 +1,9 @@
 import { Bool, OpenAPIRoute } from "chanfana";
-import { OCRImportRequestSchema, type AppContext } from "../types";
+import {
+  BasicResponse,
+  OCRImportRequestSchema,
+  type AppContext,
+} from "../types";
 import z from "zod";
 import { chatCompletion } from "../lib/deepseek";
 import { supabaseClient } from "../lib/supabase";
@@ -40,7 +44,7 @@ export class OCRImport extends OpenAPIRoute {
     },
   };
 
-  async handle(c: AppContext) {
+  async handle(c: AppContext, request: Request) {
     const data = await this.getValidatedData<typeof this.schema>();
     const { input_text, formData, shouldGenerateImages, userId } = data.body;
 
@@ -185,17 +189,24 @@ export class OCRImport extends OpenAPIRoute {
         );
       }
       console.log("\n🔄 === STEP 4: IMAGE GENERATION ===");
-      for (const category of items) {
-        if (category.layout != "variant_3" && shouldGenerateImages == true) {
-          for (const item of category.items) {
-            item.image = await generateImage(item.name, c.env);
-          }
-        }
-      }
+      const url = new URL(request.url);
+      const imageGenResponse = (await fetch(`${url.origin}/api/ai/images`, {
+        method: "POST",
+        headers: { "x-internal-call": "true" },
+        body: JSON.stringify({
+          items: items,
+          shouldGenerateImages: shouldGenerateImages,
+        }),
+      })
+        .then((data) => data.json())
+        .catch((error) =>
+          console.error("Error occured while generating images", error)
+        )) as BasicResponse;
 
+      const updatedItems = imageGenResponse.result;
       // STEP 4: CATEGORY ORDERING
       console.log("\n🔄 === STEP 5: CATEGORY ORDERING ===");
-      let orderedItems: CatalogueCategory[] = items;
+      let orderedItems: CatalogueCategory[] = updatedItems;
       const orderingPrompt = generateOrderPrompt(items, formData);
 
       try {

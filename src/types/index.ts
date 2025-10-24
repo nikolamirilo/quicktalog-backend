@@ -1,4 +1,4 @@
-import { Theme } from "@quicktalog/common";
+import { CatalogueCategory, CategoryItem, Theme } from "@quicktalog/common";
 import type { Context } from "hono";
 import z from "zod";
 import { optional } from "zod/v4";
@@ -29,6 +29,11 @@ export const OCRImportRequestSchema = z.object({
   userId: z.string(),
   shouldGenerateImages: z.boolean().optional(),
 });
+
+export type BasicResponse = {
+  result: CatalogueCategory[];
+  success: boolean;
+};
 
 export type GenerationRequest = z.infer<typeof AIGenerationRequestSchema>;
 

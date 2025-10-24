@@ -6,6 +6,8 @@ import { DailySubscriptionCheck } from "./endpoints/dailySubscriptionCheck";
 import { DailyAnalyticsProccessing } from "./endpoints/dailyAnalyticsIngestion";
 import { AllAnalyticsProccessing } from "./endpoints/allAnalyticsInsertion";
 import { cors } from "hono/cors";
+import { GeneratePdf } from "./endpoints/generatePdf";
+import { GenerateImages } from "./endpoints/generateImages";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -27,5 +29,7 @@ openapi.post("/api/ocr", OCRImport);
 openapi.post("/api/subscription/check", DailySubscriptionCheck);
 openapi.get("/api/analytics/", DailyAnalyticsProccessing);
 openapi.get("/api/analytics/all", AllAnalyticsProccessing);
+openapi.post("/api/pdf/generate", GeneratePdf);
+openapi.post("/api/ai/images", GenerateImages);
 
 export default app;
