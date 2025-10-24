@@ -23,9 +23,6 @@
         "ENV": "prod"
       }
     }
-  },
-  "limits": {
-    "cpu_ms": 300000
   }
   /**
    * Smart Placement
