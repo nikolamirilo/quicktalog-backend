@@ -190,7 +190,7 @@ export class OCRImport extends OpenAPIRoute {
       }
       console.log("\n🔄 === STEP 4: IMAGE GENERATION ===");
       const url = new URL(request.url);
-      const imageGenResponse = (await fetch(`${url.origin}/api/ai/images`, {
+      const imageGenResponse = (await fetch(`${c.env.BASE_URL}/api/ai/images`, {
         method: "POST",
         headers: { "x-internal-call": "true" },
         body: JSON.stringify({

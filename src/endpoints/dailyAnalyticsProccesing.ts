@@ -1,6 +1,5 @@
 import { Bool, OpenAPIRoute } from "chanfana";
 import { AIGenerationRequestSchema, type AppContext } from "../types";
-import { chatCompletion } from "../lib/deepseek";
 import z from "zod";
 
 export class DailyAnalyticsProccessing extends OpenAPIRoute {
@@ -33,12 +32,12 @@ export class DailyAnalyticsProccessing extends OpenAPIRoute {
 
   async handle(c: AppContext) {
     const data = await this.getValidatedData<typeof this.schema>();
-    const { prompt } = data.body;
-    const response = await chatCompletion(prompt, c.env.DEEPSEEK_API_KEY);
+    // const { prompt } = data.body;
+    // const response = await chatCompletion(prompt, c.env.DEEPSEEK_API_KEY);
 
     return c.json({
       success: true,
-      result: response,
+      result: "response",
     });
   }
 }

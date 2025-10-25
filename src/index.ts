@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { AIGeneration } from "./endpoints/aiGeneration";
 import { OCRImport } from "./endpoints/ocrImport";
 import { DailySubscriptionCheck } from "./endpoints/dailySubscriptionCheck";
-import { DailyAnalyticsProccessing } from "./endpoints/dailyAnalyticsIngestion";
+import { DailyAnalyticsProccessing } from "./endpoints/dailyAnalyticsProccesing";
 import { AllAnalyticsProccessing } from "./endpoints/allAnalyticsInsertion";
 import { cors } from "hono/cors";
 import { GeneratePdf } from "./endpoints/generatePdf";
@@ -27,7 +27,7 @@ app.use(
 openapi.post("/api/ai", AIGeneration);
 openapi.post("/api/ocr", OCRImport);
 openapi.post("/api/subscription/check", DailySubscriptionCheck);
-openapi.get("/api/analytics/", DailyAnalyticsProccessing);
+openapi.get("/api/analytics", DailyAnalyticsProccessing);
 openapi.get("/api/analytics/all", AllAnalyticsProccessing);
 openapi.post("/api/pdf/generate", GeneratePdf);
 openapi.post("/api/ai/images", GenerateImages);

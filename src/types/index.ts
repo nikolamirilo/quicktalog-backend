@@ -42,6 +42,7 @@ export type Env = {
   SUPABASE_ANON_KEY: string;
   SUPABASE_URL: string;
   UNSPLASH_ACCESS_KEY: string;
+  BASE_URL: string;
 };
 
 export type AppContext = Context<{ Bindings: Env }>;
