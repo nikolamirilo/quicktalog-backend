@@ -65,16 +65,19 @@ export class GenerateImages extends OpenAPIRoute {
     const { items, shouldGenerateImages } = data.body;
     try {
       for (const category of items) {
-        if (category.layout != "variant_3" && shouldGenerateImages == true) {
-          for (const item of category.items) {
-            item.image = await generateImage(item.name, c.env);
-          }
+        if (category.layout !== "variant_3" && shouldGenerateImages) {
+          await Promise.all(
+            category.items.map(async (item) => {
+              item.image = await generateImage(item.name, c.env);
+            })
+          );
         }
       }
+      const updatedItems = structuredClone(items);
       return c.json(
         {
           success: true,
-          result: items,
+          result: updatedItems,
         },
         200
       );

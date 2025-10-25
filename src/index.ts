@@ -29,7 +29,7 @@ openapi.post("/api/ocr", OCRImport);
 openapi.post("/api/subscription/check", DailySubscriptionCheck);
 openapi.get("/api/analytics", DailyAnalyticsProccessing);
 openapi.get("/api/analytics/all", AllAnalyticsProccessing);
-openapi.post("/api/pdf/generate", GeneratePdf);
-openapi.post("/api/ai/images", GenerateImages);
+openapi.post("/api/generate/pdf", GeneratePdf);
+openapi.post("/api/generate/images", GenerateImages);
 
 export default app;

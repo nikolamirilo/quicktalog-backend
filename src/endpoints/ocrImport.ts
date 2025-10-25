@@ -44,7 +44,7 @@ export class OCRImport extends OpenAPIRoute {
     },
   };
 
-  async handle(c: AppContext, request: Request) {
+  async handle(c: AppContext) {
     const data = await this.getValidatedData<typeof this.schema>();
     const { input_text, formData, shouldGenerateImages, userId } = data.body;
 
@@ -189,15 +189,16 @@ export class OCRImport extends OpenAPIRoute {
         );
       }
       console.log("\n🔄 === STEP 4: IMAGE GENERATION ===");
-      const url = new URL(request.url);
-      const imageGenResponse = (await fetch(`${c.env.BASE_URL}/api/ai/images`, {
-        method: "POST",
-        headers: { "x-internal-call": "true" },
-        body: JSON.stringify({
-          items: items,
-          shouldGenerateImages: shouldGenerateImages,
-        }),
-      })
+      const imageGenResponse = (await fetch(
+        `${c.env.BASE_URL}/api/generate/images`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            items: items,
+            shouldGenerateImages: shouldGenerateImages,
+          }),
+        }
+      )
         .then((data) => data.json())
         .catch((error) =>
           console.error("Error occured while generating images", error)
@@ -207,7 +208,7 @@ export class OCRImport extends OpenAPIRoute {
       // STEP 4: CATEGORY ORDERING
       console.log("\n🔄 === STEP 5: CATEGORY ORDERING ===");
       let orderedItems: CatalogueCategory[] = updatedItems;
-      const orderingPrompt = generateOrderPrompt(items, formData);
+      const orderingPrompt = generateOrderPrompt(updatedItems, formData);
 
       try {
         const orderingResponse = await chatCompletion(
@@ -221,10 +222,15 @@ export class OCRImport extends OpenAPIRoute {
           "array"
         );
 
-        if (Array.isArray(parsedNames) && parsedNames.length === items.length) {
+        if (
+          Array.isArray(parsedNames) &&
+          parsedNames.length === updatedItems.length
+        ) {
           console.log("✅ Parsed valid array of category names:", parsedNames);
 
-          const nameToItem = new Map(items.map((item) => [item.name, item]));
+          const nameToItem = new Map(
+            updatedItems.map((item) => [item.name, item])
+          );
 
           orderedItems = parsedNames
             .map((name, index) => {
@@ -243,15 +249,15 @@ export class OCRImport extends OpenAPIRoute {
           console.log("⚠️ Ordering array invalid or length mismatch:");
           console.log(
             "   Expected:",
-            items.length,
+            updatedItems.length,
             "Received:",
             parsedNames?.length || 0
           );
-          orderedItems = items;
+          orderedItems = updatedItems;
         }
       } catch (e) {
         console.error("💥 Failed to parse category ordering response:", e);
-        orderedItems = items;
+        orderedItems = updatedItems;
       }
 
       console.log("\n === STEP 6: DATABASE OPERATIONS ===");
