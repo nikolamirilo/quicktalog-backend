@@ -14,7 +14,6 @@ import {
 } from "../utils/ocr";
 import { CatalogueCategory, generateUniqueSlug } from "@quicktalog/common";
 import { extractJSONFromResponse } from "../helpers";
-import { generateImage } from "../utils";
 
 export class OCRImport extends OpenAPIRoute {
   schema = {

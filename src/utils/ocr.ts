@@ -63,7 +63,7 @@ export function generatePromptForCategoryProcessing(
     1. Return ONLY the JSON object for ONE category, no additional text or formatting
     2. Start your response directly with { and end with }
     3. Extract the category name from the text chunk
-    4.
+    4. Item name must be unique. If you have items with same name then return only one of them, not both.
     5. Set order to ${order}
     6. Create items array with all items found in this category chunk
     7. If prices are missing, estimate reasonable prices based on currency: ${

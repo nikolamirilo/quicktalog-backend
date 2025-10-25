@@ -1,13 +1,13 @@
 import { fromHono } from "chanfana";
 import { Hono } from "hono";
-import { AIGeneration } from "./endpoints/aiGeneration";
-import { OCRImport } from "./endpoints/ocrImport";
-import { DailySubscriptionCheck } from "./endpoints/dailySubscriptionCheck";
-import { DailyAnalyticsProccessing } from "./endpoints/dailyAnalyticsProccesing";
-import { AllAnalyticsProccessing } from "./endpoints/allAnalyticsInsertion";
+import { AIGeneration } from "./handlers/aiGeneration";
+import { OCRImport } from "./handlers/ocrImport";
+import { DailySubscriptionCheck } from "./handlers/dailySubscriptionCheck";
+import { DailyAnalyticsProccessing } from "./handlers/dailyAnalyticsProccesing";
+import { AllAnalyticsProccessing } from "./handlers/allAnalyticsInsertion";
 import { cors } from "hono/cors";
-import { GeneratePdf } from "./endpoints/generatePdf";
-import { GenerateImages } from "./endpoints/generateImages";
+import { GeneratePdf } from "./handlers/generatePdf";
+import { GenerateImages } from "./handlers/generateImages";
 
 const app = new Hono<{ Bindings: Env }>();
 
