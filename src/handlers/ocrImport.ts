@@ -188,7 +188,7 @@ export class OCRImport extends OpenAPIRoute {
         );
       }
       console.log("\n🔄 === STEP 4: IMAGE GENERATION ===");
-      const imageGenResponse = (await fetch(
+      const imageGenResponse = await fetch(
         `${c.env.BASE_URL}/api/generate/images`,
         {
           method: "POST",
@@ -197,13 +197,10 @@ export class OCRImport extends OpenAPIRoute {
             shouldGenerateImages: shouldGenerateImages,
           }),
         }
-      )
-        .then((data) => data.json())
-        .catch((error) =>
-          console.error("Error occured while generating images", error)
-        )) as BasicResponse;
+      );
+      const imageGenResponseJson: BasicResponse = await imageGenResponse.json();
 
-      const updatedItems = imageGenResponse.result;
+      const updatedItems = imageGenResponseJson.result;
       // STEP 4: CATEGORY ORDERING
       console.log("\n🔄 === STEP 5: CATEGORY ORDERING ===");
       let orderedItems: CatalogueCategory[] = updatedItems;
