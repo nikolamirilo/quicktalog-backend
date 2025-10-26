@@ -188,19 +188,22 @@ export class OCRImport extends OpenAPIRoute {
         );
       }
       console.log("\n🔄 === STEP 4: IMAGE GENERATION ===");
-      const imageGenResponse = await fetch(
-        `${c.env.BASE_URL}/api/generate/images`,
-        {
+      let updatedItems = items;
+      if (shouldGenerateImages === true) {
+        const res = await fetch(`${c.env.BASE_URL}/api/generate/images`, {
           method: "POST",
           body: JSON.stringify({
             items: items,
             shouldGenerateImages: shouldGenerateImages,
           }),
-        }
-      );
-      const imageGenResponseJson: BasicResponse = await imageGenResponse.json();
+        });
+        const data: BasicResponse = await res.json();
+        updatedItems = data.result;
+        console.log("Images generated successfully");
+      } else {
+        console.log("ShouldGenerateImages set to false, skipping this step");
+      }
 
-      const updatedItems = imageGenResponseJson.result;
       // STEP 4: CATEGORY ORDERING
       console.log("\n🔄 === STEP 5: CATEGORY ORDERING ===");
       let orderedItems: CatalogueCategory[] = updatedItems;
@@ -287,37 +290,36 @@ export class OCRImport extends OpenAPIRoute {
           "❌ Error inserting data into Supabase catalogues table:",
           error
         );
-        return c.json({ error: error.message }, 500);
-      }
+        return c.json({ success: false, error }, 500);
+      } else {
+        console.log("✅ Catalogue created successfully!");
 
-      console.log("✅ Catalogue created successfully!");
+        console.log("💾 Inserting usage record...");
+        const { error: errorOcrUsageEntry } = await database
+          .from("ocr")
+          .insert([{ user_id: userId, catalogue: slug }]);
 
-      console.log("💾 Inserting usage record...");
-      const { error: errorOcrUsageEntry } = await database
-        .from("ocr")
-        .insert([{ user_id: userId, catalogue: slug }]);
+        if (errorOcrUsageEntry) {
+          console.error(
+            "❌ Error inserting data into Supabase ocr table:",
+            errorOcrUsageEntry
+          );
+        }
 
-      if (errorOcrUsageEntry) {
-        console.error(
-          "❌ Error inserting data into Supabase ocr table:",
-          errorOcrUsageEntry
+        console.log("\n🎉 === PROCESS COMPLETED SUCCESSFULLY ===");
+        console.log(
+          "🔄 Categories properly ordered:",
+          orderedItems.map((s) => `${s.order}. ${s.name}`).join(" → ")
         );
-        return c.json({ error: errorOcrUsageEntry.message }, { status: 500 });
+
+        return c.json({ success: true, slug: slug }, 200);
       }
-
-      console.log("\n🎉 === PROCESS COMPLETED SUCCESSFULLY ===");
-      const finalUrl = `/catalogues/${formData.name}`;
-      console.log(
-        "🔄 Categories properly ordered:",
-        orderedItems.map((s) => `${s.order}. ${s.name}`).join(" → ")
-      );
-
-      return c.json({ restaurantUrl: finalUrl });
     } catch (error) {
-      console.error("\n💥 === CRITICAL ERROR OCCURRED DURING OCR IMPORT ===");
+      console.error("\nCRITICAL ERROR OCCURRED DURING OCR IMPORT");
       console.error(error);
       return c.json(
         {
+          success: false,
           message: `Error occured while doing OCR import of catalogue ${formData.name}`,
           error,
         },
