@@ -23,6 +23,9 @@
         "ENV": "prod"
       }
     }
+  },
+  "triggers": {
+    "crons": ["* * * * *"]
   }
   /**
    * Smart Placement

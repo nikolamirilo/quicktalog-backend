@@ -179,13 +179,7 @@ export class AIGeneration extends OpenAPIRoute {
             errorOcrUsageEntry
           );
         }
-
         console.log("\n🎉 === PROCESS COMPLETED SUCCESSFULLY ===");
-        console.log(
-          "🔄 Categories properly ordered:",
-          orderedItems.map((s) => `${s.order}. ${s.name}`).join(" → ")
-        );
-        console.log("✅ Catalogue created successfully!");
         return c.json({ success: true, slug: slug }, 200);
       }
     } catch (error) {
