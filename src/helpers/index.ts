@@ -1,34 +1,3 @@
-import { ImageSearchResult } from "../types";
-
-export function parseImageResult(content: string): ImageSearchResult | null {
-  try {
-    const cleaned = content.replace(/```json\n?|\n?```/g, "").trim();
-    const parsed = JSON.parse(cleaned);
-    const url =
-      parsed.url || parsed.image_url || parsed.imageUrl || parsed.link;
-
-    if (url && typeof url === "string" && url.startsWith("http")) {
-      return {
-        url,
-        source: parsed.source || "unknown",
-        searchTerm: parsed.searchTerm || parsed.search_term,
-      };
-    }
-  } catch {
-    const urlMatch = content.match(
-      /https?:\/\/[^\s"'<>]+\.(jpg|jpeg|png|webp|gif)/i
-    );
-    if (urlMatch) {
-      return {
-        url: urlMatch[0],
-        source: "extracted",
-      };
-    }
-  }
-
-  return null;
-}
-
 export const extractJSONObjectFromResponse = (response: string) => {
   const cleanedText = response
     .replace(/```json/g, "")

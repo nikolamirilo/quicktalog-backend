@@ -187,25 +187,9 @@ export class OCRImport extends OpenAPIRoute {
           { status: 500 }
         );
       }
-      console.log("\n🔄 === STEP 4: IMAGE GENERATION ===");
       let updatedItems = items;
-      if (shouldGenerateImages === true) {
-        const res = await fetch(`${c.env.BASE_URL}/api/generate/images`, {
-          method: "POST",
-          body: JSON.stringify({
-            items: items,
-            shouldGenerateImages: shouldGenerateImages,
-          }),
-        });
-        const data: BasicResponse = await res.json();
-        updatedItems = data.result;
-        console.log("Images generated successfully");
-      } else {
-        console.log("ShouldGenerateImages set to false, skipping this step");
-      }
-
       // STEP 4: CATEGORY ORDERING
-      console.log("\n🔄 === STEP 5: CATEGORY ORDERING ===");
+      console.log("\n🔄 === STEP 4: CATEGORY ORDERING ===");
       let orderedItems: CatalogueCategory[] = updatedItems;
       const orderingPrompt = generateOrderPrompt(updatedItems, formData);
 
@@ -259,13 +243,13 @@ export class OCRImport extends OpenAPIRoute {
         orderedItems = updatedItems;
       }
 
-      console.log("\n === STEP 6: DATABASE OPERATIONS ===");
+      console.log("\n === STEP 5: DATABASE OPERATIONS ===");
 
       const slug = generateUniqueSlug(formData.name);
 
       const catalogueData = {
         name: slug || formData.name,
-        status: "active",
+        status: shouldGenerateImages === true ? "in preparation" : "active",
         title: formData.title,
         currency: formData.currency,
         theme: formData.theme,
@@ -293,7 +277,18 @@ export class OCRImport extends OpenAPIRoute {
         return c.json({ success: false, error }, 500);
       } else {
         console.log("✅ Catalogue created successfully!");
-
+        if (shouldGenerateImages === true) {
+          fetch(`${c.env.BASE_URL}/api/generate/images`, {
+            method: "POST",
+            body: JSON.stringify({
+              data: items,
+              name: slug,
+            }),
+          });
+          console.log("Sent request for image generation");
+        } else {
+          console.log("ShouldGenerateImages set to false, skipping this step");
+        }
         console.log("💾 Inserting usage record...");
         const { error: errorOcrUsageEntry } = await database
           .from("ocr")

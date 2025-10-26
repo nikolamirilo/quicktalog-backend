@@ -119,7 +119,7 @@ export function generateOrderPrompt(items, formData: any): string {
    - Are in ${
      formData.language || "English"
    } with consistent capitalization (e.g., First letter capitalized, rest lowercase).
-   - Are clear, unique, and self-explanatory.
+   - Are clear, unique on catalogue level, and self-explanatory.
    - Contain no special characters (e.g., /, -, ", ').
    - Are semantically and grammatically appropriate for the catalogue context.
 5. Ensure items names:

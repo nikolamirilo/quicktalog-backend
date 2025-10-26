@@ -1,9 +1,4 @@
-import {
-  CatalogueCategory,
-  fetchImageFromUnsplash,
-  layouts,
-} from "@quicktalog/common";
-import { baseSchema, layoutData } from ".";
+import { baseSchema, layoutData, rules } from ".";
 import { GenerationRequest } from "../types";
 
 export function generatePromptForAI(
@@ -20,7 +15,7 @@ export function generatePromptForAI(
     
     Schema: ${JSON.stringify(
       baseSchema
-    )} - response should be in this format without additional texts (just array of items)
+    )} - response should be in this format without additional texts (just array of items). CATEGORY NAME MUST BE UNIQUE!
 
     ${
       shouldGenerateImages == true
@@ -31,8 +26,10 @@ export function generatePromptForAI(
     }
 
     General information about service catalogue: ${JSON.stringify(formData)}
+
+    THE MOST IMPORTANT RULES: ${rules} 
     
-    IMPORTANT REQUIREMENTS:
+    OTHER IMPORTANT RULES:
     1. Return ONLY the JSON object, no additional text, explanations, or formatting
     2. Start your response directly with { and end with }
     3. Catalogue/Price List should be created in the selected language: ${
