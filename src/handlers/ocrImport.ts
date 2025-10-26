@@ -14,6 +14,7 @@ import {
 } from "../utils/ocr";
 import { CatalogueCategory, generateUniqueSlug } from "@quicktalog/common";
 import { extractJSONFromResponse } from "../helpers";
+import { GenerateImages } from "./generateImages";
 
 export class OCRImport extends OpenAPIRoute {
   schema = {
@@ -278,14 +279,13 @@ export class OCRImport extends OpenAPIRoute {
       } else {
         console.log("✅ Catalogue created successfully!");
         if (shouldGenerateImages === true) {
-          fetch(`${c.env.BASE_URL}/api/generate/images`, {
-            method: "POST",
-            body: JSON.stringify({
-              data: items,
-              name: slug,
-            }),
-          });
-          console.log("Sent request for image generation");
+          c.executionCtx.waitUntil(
+            (async () => {
+              const generateImagesHandler = new GenerateImages();
+              await generateImagesHandler.handle(c, orderedItems, slug);
+            })()
+          );
+          console.log("Started with images search and update of items");
         } else {
           console.log("ShouldGenerateImages set to false, skipping this step");
         }

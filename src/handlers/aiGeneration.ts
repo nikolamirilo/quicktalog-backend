@@ -124,10 +124,10 @@ export class AIGeneration extends OpenAPIRoute {
         orderedItems = generatedData;
       }
 
-      const catalogueSlug = generateUniqueSlug(formData.name) || formData.name;
+      const slug = generateUniqueSlug(formData.name) || formData.name;
 
       const catalogueData = {
-        name: catalogueSlug || formData.name,
+        name: slug || formData.name,
         status: shouldGenerateImages === true ? "in preparation" : "active",
         title: formData.title,
         currency: formData.currency,
@@ -158,16 +158,20 @@ export class AIGeneration extends OpenAPIRoute {
       } else {
         console.log("✅ Catalogue created successfully!");
         if (shouldGenerateImages === true) {
-          const generateImagesHandler = new GenerateImages();
-          await generateImagesHandler.handle(c, orderedItems, catalogueSlug);
-          console.log("Sent request for image generation");
+          c.executionCtx.waitUntil(
+            (async () => {
+              const generateImagesHandler = new GenerateImages();
+              await generateImagesHandler.handle(c, orderedItems, slug);
+            })()
+          );
+          console.log("Started with images search and update of items");
         } else {
           console.log("ShouldGenerateImages set to false, skipping this step");
         }
         console.log("💾 Inserting usage record...");
         const { error: errorOcrUsageEntry } = await database
           .from("prompts")
-          .insert([{ user_id: userId, catalogue: catalogueSlug }]);
+          .insert([{ user_id: userId, catalogue: slug }]);
 
         if (errorOcrUsageEntry) {
           console.error(
@@ -181,8 +185,8 @@ export class AIGeneration extends OpenAPIRoute {
           "🔄 Categories properly ordered:",
           orderedItems.map((s) => `${s.order}. ${s.name}`).join(" → ")
         );
-
-        return c.json({ success: true, slug: catalogueSlug }, 200);
+        console.log("✅ Catalogue created successfully!");
+        return c.json({ success: true, slug: slug }, 200);
       }
     } catch (error) {
       console.error("Error occured while generating catalogue using AI", error);
