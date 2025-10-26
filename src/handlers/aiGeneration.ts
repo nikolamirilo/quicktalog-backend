@@ -10,6 +10,7 @@ import {
   extractJSONFromResponse,
 } from "../helpers";
 import { generateOrderPrompt } from "../utils/ocr";
+import { GenerateImages } from "./generateImages";
 
 export class AIGeneration extends OpenAPIRoute {
   schema = {
@@ -157,13 +158,8 @@ export class AIGeneration extends OpenAPIRoute {
       } else {
         console.log("✅ Catalogue created successfully!");
         if (shouldGenerateImages === true) {
-          fetch(`${c.env.BASE_URL}/api/generate/images`, {
-            method: "POST",
-            body: JSON.stringify({
-              data: orderedItems,
-              name: catalogueSlug,
-            }),
-          });
+          const generateImagesHandler = new GenerateImages();
+          await generateImagesHandler.handle(c, orderedItems, catalogueSlug);
           console.log("Sent request for image generation");
         } else {
           console.log("ShouldGenerateImages set to false, skipping this step");

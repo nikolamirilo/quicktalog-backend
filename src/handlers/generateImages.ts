@@ -47,10 +47,7 @@ export class GenerateImages extends OpenAPIRoute {
     },
   };
 
-  async handle(c: AppContext) {
-    const { body } = await this.getValidatedData<typeof this.schema>();
-    const { data, name } = body;
-
+  async handle(c: AppContext, data: CatalogueCategory[], name: string) {
     const database = supabaseClient(
       c.env.SUPABASE_URL,
       c.env.SUPABASE_ANON_KEY
