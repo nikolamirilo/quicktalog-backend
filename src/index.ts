@@ -28,7 +28,7 @@ app.use(
 openapi.post("/api/ai", AIGeneration);
 openapi.post("/api/ocr", OCRImport);
 openapi.post("/api/subscription/check", DailySubscriptionCheck);
-openapi.post("/api/generate/pdf", GeneratePdf);
+openapi.get("/api/generate/pdf", GeneratePdf);
 openapi.post("/api/generate/images", GenerateImages);
 
 app.get("/api/analytics", async (c: AppContext) => {
