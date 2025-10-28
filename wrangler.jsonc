@@ -9,16 +9,14 @@
   "observability": {
     "enabled": true
   },
-  "name": "quicktalog-backend-test",
+  "name": "quicktalog-backend",
   "env": {
     "test": {
-      "name": "quicktalog-backend-test",
       "vars": {
         "ENV": "test"
       }
     },
     "prod": {
-      "name": "quicktalog-backend",
       "vars": {
         "ENV": "prod"
       }
@@ -26,14 +24,14 @@
   },
   "triggers": {
     "crons": ["0 3 * * *"]
-  },
-  "d1_databases": [
-    {
-      "binding": "database",
-      "database_name": "quicktalog",
-      "database_id": "28031c60-48e6-4968-b632-8e424728f5f0"
-    }
-  ]
+  }
+  // "d1_databases": [
+  //   {
+  //     "binding": "database",
+  //     "database_name": "quicktalog",
+  //     "database_id": "28031c60-48e6-4968-b632-8e424728f5f0"
+  //   }
+  // ]
 
   /**
    * Smart Placement
