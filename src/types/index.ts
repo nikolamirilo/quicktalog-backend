@@ -44,7 +44,6 @@ export type Env = {
   UNSPLASH_ACCESS_KEY: string;
   BASE_URL: string;
   POSTHOG_HOST: string;
-  POSTHOG_KEY: string;
   POSTHOG_API_KEY: string;
   POSTHOG_PROJECT_ID: string;
   NODE_ENV: "test" | "prod";
