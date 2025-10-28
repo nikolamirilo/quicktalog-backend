@@ -1,5 +1,6 @@
 import { Bool, OpenAPIRoute } from "chanfana";
 import { type AppContext } from "../types";
+import z from "zod";
 
 export class GeneratePdf extends OpenAPIRoute {
   schema = {
@@ -8,10 +9,16 @@ export class GeneratePdf extends OpenAPIRoute {
   };
 
   async handle(c: AppContext) {
+    const res = await c.env.database.exec("SELECT * FROM logs");
+    const { results } = await c.env.database
+      .prepare("SELECT * from logs")
+      .bind(true)
+      .all();
     try {
       return c.json({
         success: true,
-        result: c.env.ENV,
+        result: results,
+        res: res,
       });
     } catch (error) {
       console.error("Error occured", error);

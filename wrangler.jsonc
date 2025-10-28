@@ -12,8 +12,8 @@
   "name": "quicktalog-backend",
   "vars": {
     "ENVIRONMENT": "development",
-    "POSTHOG_PROJECT_ID": "83051",
     "BASE_URL": "http://127.0.0.1:8787",
+    "POSTHOG_PROJECT_ID": "83051",
     "POSTHOG_HOST": "https://eu.i.posthog.com",
     "SUPABASE_URL": "https://tpcfltcupcofteovrvmu.supabase.co"
   },
@@ -22,27 +22,33 @@
       "name": "quicktalog-backend-test",
       "vars": {
         "ENVIRONMENT": "test",
-        "BASE_URL": "https://backend-test.quicktalog.app"
-      }
+        "BASE_URL": "https://backend-test.quicktalog.app",
+        "POSTHOG_PROJECT_ID": "83051",
+        "POSTHOG_HOST": "https://eu.i.posthog.com",
+        "SUPABASE_URL": "https://tpcfltcupcofteovrvmu.supabase.co"
+      },
+      "d1_databases": [
+        {
+          "binding": "database",
+          "database_name": "quicktalog",
+          "database_id": "28031c60-48e6-4968-b632-8e424728f5f0"
+        }
+      ]
     },
     "prod": {
       "name": "quicktalog-backend",
       "vars": {
         "ENVIRONMENT": "prod",
-        "BASE_URL": "https://backend.quicktalog.app"
+        "BASE_URL": "https://backend.quicktalog.app",
+        "POSTHOG_PROJECT_ID": "83051",
+        "POSTHOG_HOST": "https://eu.i.posthog.com",
+        "SUPABASE_URL": "https://tpcfltcupcofteovrvmu.supabase.co"
       }
     }
   },
   "triggers": {
     "crons": ["0 3 * * *"]
   }
-  // "d1_databases": [
-  //   {
-  //     "binding": "database",
-  //     "database_name": "quicktalog",
-  //     "database_id": "28031c60-48e6-4968-b632-8e424728f5f0"
-  //   }
-  // ]
 
   /**
    * Smart Placement
