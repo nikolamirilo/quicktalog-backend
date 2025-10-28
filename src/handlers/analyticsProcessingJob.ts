@@ -31,7 +31,7 @@ export class AnalyticsProcessingJob extends OpenAPIRoute {
       if (
         !env.POSTHOG_API_KEY ||
         !env.POSTHOG_PROJECT_ID ||
-        !env.NEXT_PUBLIC_POSTHOG_HOST
+        !env.POSTHOG_HOST
       ) {
         console.error("Missing required environment variables");
         return console.error(
@@ -47,7 +47,7 @@ export class AnalyticsProcessingJob extends OpenAPIRoute {
       );
 
       const res = await fetch(
-        `${env.NEXT_PUBLIC_POSTHOG_HOST}/api/projects/${env.POSTHOG_PROJECT_ID}/query/`,
+        `${env.POSTHOG_HOST}/api/projects/${env.POSTHOG_PROJECT_ID}/query/`,
         {
           method: "POST",
           headers: {

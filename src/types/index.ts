@@ -43,8 +43,8 @@ export type Env = {
   SUPABASE_URL: string;
   UNSPLASH_ACCESS_KEY: string;
   BASE_URL: string;
-  NEXT_PUBLIC_POSTHOG_HOST: string;
-  NEXT_PUBLIC_POSTHOG_KEY: string;
+  POSTHOG_HOST: string;
+  POSTHOG_KEY: string;
   POSTHOG_API_KEY: string;
   POSTHOG_PROJECT_ID: string;
   NODE_ENV: "test" | "prod";

@@ -31,6 +31,10 @@ openapi.post("/api/subscription/check", DailySubscriptionCheck);
 openapi.post("/api/generate/pdf", GeneratePdf);
 openapi.post("/api/generate/images", GenerateImages);
 
+app.get("/api/analytics", async (c: AppContext) => {
+  const analyticsProcessingJob = new AnalyticsProcessingJob();
+  await analyticsProcessingJob.handle(c.env, "daily");
+});
 // --- test: http://127.0.0.1:8787/__scheduled?cron=*+*+*+*+*
 export default {
   fetch: app.fetch,
