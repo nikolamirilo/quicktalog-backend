@@ -43,7 +43,7 @@ export class AnalyticsProcessingJob extends OpenAPIRoute {
       const analyticsQuery = generateAnalyticsQuery(
         startDateIsosString,
         endDate.toISOString(),
-        env.NODE_ENV
+        env.ENVIRONMENT
       );
 
       const res = await fetch(

@@ -46,9 +46,9 @@ export type Env = {
   POSTHOG_HOST: string;
   POSTHOG_API_KEY: string;
   POSTHOG_PROJECT_ID: string;
-  NODE_ENV: "test" | "prod";
   MYBROWSER: Fetcher;
   database: D1Database;
+  ENVIRONMENT: "test" | "prod";
 };
 
 export type AppContext = Context<{ Bindings: Env }>;

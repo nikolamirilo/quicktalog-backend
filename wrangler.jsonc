@@ -10,15 +10,26 @@
     "enabled": true
   },
   "name": "quicktalog-backend",
+  "vars": {
+    "ENVIRONMENT": "development",
+    "POSTHOG_PROJECT_ID": "83051",
+    "BASE_URL": "http://127.0.0.1:8787",
+    "POSTHOG_HOST": "https://eu.i.posthog.com",
+    "SUPABASE_URL": "https://tpcfltcupcofteovrvmu.supabase.co"
+  },
   "env": {
     "test": {
+      "name": "quicktalog-backend-test",
       "vars": {
-        "ENV": "test"
+        "ENVIRONMENT": "test",
+        "BASE_URL": "https://backend-test.quicktalog.app"
       }
     },
     "prod": {
+      "name": "quicktalog-backend",
       "vars": {
-        "ENV": "prod"
+        "ENVIRONMENT": "prod",
+        "BASE_URL": "https://backend.quicktalog.app"
       }
     }
   },
