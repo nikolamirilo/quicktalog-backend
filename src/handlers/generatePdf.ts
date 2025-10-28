@@ -8,7 +8,7 @@ export class GeneratePdf extends OpenAPIRoute {
   };
 
   async handle(c: AppContext) {
-    const results = await c.env.database.exec("select * from logs");
+    const results = await c.env.database.prepare("select * from logs").run();
     try {
       return c.json({
         success: true,
