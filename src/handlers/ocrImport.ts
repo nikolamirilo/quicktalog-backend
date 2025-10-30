@@ -64,8 +64,10 @@ export class OCRImport extends OpenAPIRoute {
 
       // STEP 1: CATEGORY DETECTION
       console.log("\n🔍 === STEP 1: CATEGORY DETECTION ===");
-      const categoryDetectionPrompt =
-        generatePromptForCategoryDetection(input_text);
+      const categoryDetectionPrompt = generatePromptForCategoryDetection(
+        input_text,
+        formData.language
+      );
       const categoryDetectionResponse = await chatCompletion(
         categoryDetectionPrompt,
         c.env.DEEPSEEK_API_KEY

@@ -1,6 +1,9 @@
 import { baseCategorySchema, layoutData } from ".";
 
-export function generatePromptForCategoryDetection(ocrText: string): string {
+export function generatePromptForCategoryDetection(
+  ocrText: string,
+  language: string
+): string {
   return `
     Role: You are an expert in analyzing digital catalogs, menus and price lists to identify categories.
     Your task is to analyze the provided OCR text and split it into logical category chunks.
@@ -8,20 +11,22 @@ export function generatePromptForCategoryDetection(ocrText: string): string {
     OCR Text: ${ocrText}
     
     IMPORTANT REQUIREMENTS:
+    0. Remove junk data that does not belong to the catalogue, e.g. information about the company as catalogue should be consisted of services/products. 
     1. Return ONLY a JSON object with this structure: { "chunks": ["chunk1", "chunk2", ...] }
     2. Each chunk should contain all text related to one category (including the category name)
     3. Identify product/service categories like: breakfast, lunch, dinner, drinks, appetizers, desserts, wellness services, beauty treatments, laptops, mobile phones, etc. CATEGORY NAME MUST BE UNIQUE IN CATALOGUE!!! It is not allowed to have 2 categories with same name!!
     4. If no clear categories are found, group similar items together logically
-    5. Each chunk should be a complete text section that includes:
+    5. Make sure to have all texts only in one language, do not duplicate items in 2 languages. All items must be in selected language ${language}
+    6. Each chunk should be a complete text section that includes:
        - The category name/title
        - All items belonging to that category
        - Any descriptions or prices for those items
-    6. Do not modify the original text content, just split it appropriately
-    7. Return ONLY the JSON object, no additional text or formatting
-    8. Start your response directly with { and end with }
-    9. Category name must be unique per catalogue!!!. Merge multiple categories if they are named the same and if make sense.
-    10. Create new category chunk if it makes sense to have new category depending on the input data
-    11. Remove from input data information which is not related to services/products (address, legal info, description of fascility, links, etc.)
+    7. Do not modify the original text content, just split it appropriately
+    8. Return ONLY the JSON object, no additional text or formatting
+    9. Start your response directly with { and end with }
+    10. Category name must be unique per catalogue!!!. Merge multiple categories if they are named the same and if make sense.
+    11. Create new category chunk if it makes sense to have new category depending on the input data
+    12. Remove from input data information which is not related to services/products (address, legal info, description of fascility, links, etc.)
     
     Example output format:
     {
