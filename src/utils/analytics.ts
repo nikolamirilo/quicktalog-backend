@@ -14,7 +14,9 @@ WHERE event = '$pageview'
   AND properties.$current_url LIKE '%/catalogues/%'
   AND properties.$current_url NOT ILIKE '%localhost%'
   AND properties.$current_url ILIKE '${
-    env === "test" ? "%test.quicktalog.app%" : "wwww.quicktalog.app"
+    env === "test" || env === "development"
+      ? "%test.quicktalog.app%"
+      : "wwww.quicktalog.app"
   }'
   AND timestamp >= toDateTime('${startDate}')
   AND timestamp < toDateTime('${endDate}')

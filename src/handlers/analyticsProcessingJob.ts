@@ -11,7 +11,7 @@ export class AnalyticsProcessingJob extends OpenAPIRoute {
 
   async handle(env: Env, type: "all" | "daily") {
     const endDate = new Date();
-    endDate.setHours(0, 0, 0, 0);
+    //endDate.setHours(0, 0, 0, 0);
 
     let startDateIsosString: string;
 
@@ -20,7 +20,7 @@ export class AnalyticsProcessingJob extends OpenAPIRoute {
     } else {
       const startDate = new Date(endDate);
       startDate.setDate(startDate.getDate() - 1);
-      startDate.setHours(0, 0, 0, 0);
+      //startDate.setHours(0, 0, 0, 0);
       startDateIsosString = startDate.toISOString();
     }
 
