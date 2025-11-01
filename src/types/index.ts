@@ -42,7 +42,7 @@ export type Env = {
   SUPABASE_ANON_KEY: string;
   SUPABASE_URL: string;
   UNSPLASH_ACCESS_KEY: string;
-  BASE_URL: string;
+  APP_URL: string;
   POSTHOG_HOST: string;
   POSTHOG_API_KEY: string;
   POSTHOG_PROJECT_ID: string;

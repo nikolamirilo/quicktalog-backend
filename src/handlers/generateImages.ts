@@ -71,19 +71,27 @@ export class GenerateImages extends OpenAPIRoute {
 
       if (error) {
         console.error("Issue occurred while updating catalogue:", error);
-        return c.json(
+        await database
+          .from("catalogues")
+          .update({ services: [], status: "error" })
+          .eq("name", name);
+        return console.log(
           { success: false, error: error.message || "Database update failed" },
           500
         );
       }
 
-      return c.json(
+      return console.log(
         { success: true, result: "Updated record in database" },
         200
       );
     } catch (err) {
       console.error("Error occurred:", err);
-      return c.json(
+      await database
+        .from("catalogues")
+        .update({ services: [], status: "error" })
+        .eq("name", name);
+      return console.log(
         {
           success: false,
           error: err instanceof Error ? err.message : "Unknown error",

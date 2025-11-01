@@ -1,3 +1,43 @@
+import { SupabaseClient } from "@supabase/supabase-js";
+
+export async function revalidateData(app_url: string) {
+  await fetch(`${app_url}/api/revalidate`);
+}
+export async function createInitialCatalogue(
+  database: SupabaseClient,
+  slug: string,
+  formData: any,
+  source: string,
+  userId: string
+) {
+  try {
+    const catalogueData = {
+      name: slug || formData.name,
+      status: "in preparation",
+      title: formData.title,
+      currency: formData.currency,
+      theme: formData.theme,
+      subtitle: formData.subtitle,
+      created_by: userId,
+      logo: "",
+      legal: {},
+      partners: [],
+      configuration: {},
+      contact: [],
+      services: [],
+      source: source,
+    };
+
+    const { error } = await database.from("catalogues").insert([catalogueData]);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error("Error creating initial catalogue:", error);
+    return false;
+  }
+}
+
 export const extractJSONObjectFromResponse = (response: string) => {
   const cleanedText = response
     .replace(/```json/g, "")

@@ -12,7 +12,7 @@
   "name": "quicktalog-backend",
   "vars": {
     "ENVIRONMENT": "development",
-    "BASE_URL": "http://127.0.0.1:8787",
+    "APP_URL": "http://localhost:3000",
     "POSTHOG_PROJECT_ID": "83051",
     "POSTHOG_HOST": "https://eu.i.posthog.com",
     "SUPABASE_URL": "https://tpcfltcupcofteovrvmu.supabase.co"
@@ -22,7 +22,7 @@
       "name": "quicktalog-backend-test",
       "vars": {
         "ENVIRONMENT": "test",
-        "BASE_URL": "https://backend-test.quicktalog.app",
+        "APP_URL": "https://test.quicktalog.app",
         "POSTHOG_PROJECT_ID": "83051",
         "POSTHOG_HOST": "https://eu.i.posthog.com",
         "SUPABASE_URL": "https://tpcfltcupcofteovrvmu.supabase.co"
@@ -39,7 +39,7 @@
       "name": "quicktalog-backend",
       "vars": {
         "ENVIRONMENT": "prod",
-        "BASE_URL": "https://backend.quicktalog.app",
+        "APP_URL": "https://www.quicktalog.app",
         "POSTHOG_PROJECT_ID": "83051",
         "POSTHOG_HOST": "https://eu.i.posthog.com",
         "SUPABASE_URL": "https://tpcfltcupcofteovrvmu.supabase.co"
