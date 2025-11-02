@@ -266,7 +266,7 @@ export class OCRImport extends OpenAPIRoute {
 
         const catalogueData = {
           name: slug || formData.name,
-          status: shouldGenerateImages === true ? "in preparation" : "active",
+          status: "active",
           title: formData.title,
           currency: formData.currency,
           theme: formData.theme,
