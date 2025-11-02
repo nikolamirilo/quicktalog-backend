@@ -13,23 +13,14 @@ export class GenerateImages extends OpenAPIRoute {
     );
 
     try {
-      const processedData: CatalogueCategory[] = [];
-      for (const category of data) {
-        try {
+      const processedData = await Promise.all(
+        data.map(async (category) => {
           if (category.layout !== "variant_3") {
-            const updated = await generateImage(category, c.env);
-            processedData.push(updated);
-          } else {
-            processedData.push(category);
+            return await generateImage(category, c.env);
           }
-        } catch (e) {
-          console.error(
-            `[GenerateImages] Failed to generate image for ${category.name}:`,
-            e
-          );
-          processedData.push({ ...category });
-        }
-      }
+          return category;
+        })
+      );
 
       const { error } = await database
         .from("catalogues")
