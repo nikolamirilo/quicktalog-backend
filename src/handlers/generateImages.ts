@@ -6,47 +6,6 @@ import { supabaseClient } from "../lib/supabase";
 import { CatalogueCategory } from "@quicktalog/common";
 
 export class GenerateImages extends OpenAPIRoute {
-  schema = {
-    tags: ["Utilities"],
-    summary: "Generate Images and Update Catalogue",
-    request: {
-      body: {
-        content: {
-          "application/json": {
-            schema: z.object({
-              data: z.any(),
-              name: z.string(),
-            }),
-          },
-        },
-      },
-    },
-    responses: {
-      200: {
-        description: "Successfully updated catalogue with generated images",
-        content: {
-          "application/json": {
-            schema: z.object({
-              success: Bool(),
-              result: z.string(),
-            }),
-          },
-        },
-      },
-      500: {
-        description: "Error while generating images or updating database",
-        content: {
-          "application/json": {
-            schema: z.object({
-              success: Bool(),
-              error: z.string(),
-            }),
-          },
-        },
-      },
-    },
-  };
-
   async handle(c: AppContext, data: CatalogueCategory[], name: string) {
     const database = supabaseClient(
       c.env.SUPABASE_URL,
@@ -54,15 +13,23 @@ export class GenerateImages extends OpenAPIRoute {
     );
 
     try {
-      // Process categories and generate images
-      const processedData = await Promise.all(
-        data.map(async (category) => {
+      const processedData: CatalogueCategory[] = [];
+      for (const category of data) {
+        try {
           if (category.layout !== "variant_3") {
-            return await generateImage(category, c.env);
+            const updated = await generateImage(category, c.env);
+            processedData.push(updated);
+          } else {
+            processedData.push(category);
           }
-          return category;
-        })
-      );
+        } catch (e) {
+          console.error(
+            `[GenerateImages] Failed to generate image for ${category.name}:`,
+            e
+          );
+          processedData.push({ ...category });
+        }
+      }
 
       const { error } = await database
         .from("catalogues")

@@ -157,13 +157,6 @@ export async function generateImage(
   if (enrichedCategoryDeepseek) {
     return { ...category, items: enrichedCategoryDeepseek };
   }
-  // const enrichedCategoryUnsplash = await searchUnsplash(
-  //   category.items,
-  //   env.UNSPLASH_ACCESS_KEY
-  // );
-  // if (enrichedCategoryUnsplash) {
-  //   return enrichedCategoryUnsplash;
-  // }
 
   console.warn(`No image found for "${category.name}", using fallback image`);
   return category;

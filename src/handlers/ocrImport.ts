@@ -297,8 +297,15 @@ export class OCRImport extends OpenAPIRoute {
           if (shouldGenerateImages === true) {
             c.executionCtx.waitUntil(
               (async () => {
-                const generateImagesHandler = new GenerateImages();
-                await generateImagesHandler.handle(c, orderedItems, slug);
+                try {
+                  const generator = new GenerateImages();
+                  await generator.handle(c, orderedItems, slug);
+                } catch (err) {
+                  console.error(
+                    "[waitUntil] Background GenerateImages failed:",
+                    err
+                  );
+                }
               })()
             );
             console.log("Started with images search and update of items");
