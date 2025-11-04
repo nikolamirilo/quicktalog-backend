@@ -106,3 +106,31 @@ export const extractJSONFromResponse = <T = any>(
 
   return parsedData as T;
 };
+
+export const safeExtractJSONFromResponse = <T = any>(
+  response: string,
+  type: "array" | "object" = "object"
+): T => {
+  try {
+    return extractJSONFromResponse<T>(response, type);
+  } catch (err) {
+    console.warn("⚠️ Initial parse failed, cleaning and retrying...");
+
+    // Extract possible JSON region
+    const match = response.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+    if (!match) throw new Error("No JSON structure found");
+
+    let cleaned = match[0]
+      .replace(/[\n\r\t]+/g, " ") // remove newlines/tabs
+      .replace(/“|”|„|‟/g, '"') // replace fancy quotes
+      .replace(/(?<!\\)"/g, '\\"') // escape unescaped quotes
+      .replace(/\\"([a-zA-Z0-9_]+)\\":/g, '"$1":'); // unescape field names
+
+    try {
+      return JSON.parse(cleaned);
+    } catch (finalErr) {
+      console.error("❌ Still failed after cleanup", finalErr);
+      throw finalErr;
+    }
+  }
+};

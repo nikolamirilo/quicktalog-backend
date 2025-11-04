@@ -17,6 +17,7 @@ import {
   createInitialCatalogue,
   extractJSONFromResponse,
   revalidateData,
+  safeExtractJSONFromResponse,
 } from "../helpers";
 import { GenerateImages } from "./generateImages";
 
@@ -87,10 +88,9 @@ export class OCRImport extends OpenAPIRoute {
         let categoryChunks: string[] = [];
         try {
           console.log("🔧 Parsing category detection response...");
-          const categoryData = extractJSONFromResponse<{ chunks: string[] }>(
-            categoryDetectionResponse,
-            "object"
-          );
+          const categoryData = safeExtractJSONFromResponse<{
+            chunks: string[];
+          }>(categoryDetectionResponse, "object");
 
           console.log(
             "✅ Parsed category data:",
