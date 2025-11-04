@@ -1,37 +1,49 @@
 import { baseCategorySchema, layoutData } from ".";
 
-export function generatePromptForCategoryDetection(ocrText: string): string {
+export function generatePromptForCategoryDetection(
+  ocrText: string,
+  language: string
+): string {
   return `
-    Role: You are an expert in analyzing digital catalogs, menus and price lists to identify categories.
-    Your task is to analyze the provided OCR text and split it into logical category chunks.
-    
-    OCR Text: ${ocrText}
-    
-    IMPORTANT REQUIREMENTS:
-    1. Return ONLY a JSON object with this structure: { "chunks": ["chunk1", "chunk2", ...] }
-    2. Each chunk should contain all text related to one category (including the category name)
-    3. Identify product/service categories like: breakfast, lunch, dinner, drinks, appetizers, desserts, wellness services, beauty treatments, laptops, mobile phones, etc. CATEGORY NAME MUST BE UNIQUE IN CATALOGUE!!! It is not allowed to have 2 categories with same name!!
-    4. If no clear categories are found, group similar items together logically
-    5. Each chunk should be a complete text section that includes:
-       - The category name/title
-       - All items belonging to that category
-       - Any descriptions or prices for those items
-    6. Do not modify the original text content, just split it appropriately
-    7. Return ONLY the JSON object, no additional text or formatting
-    8. Start your response directly with { and end with }
-    9. Category name must be unique per catalogue!!!. Merge multiple categories if they are named the same and if make sense.
-    10. Create new category chunk if it makes sense to have new category depending on the input data
-    11. Remove from input data information which is not related to services/products (address, legal info, description of fascility, links, etc.)
-    
-    Example output format:
-    {
-      "chunks": [
-        "BREAKFAST\nScrambled Eggs 8.50\nPancakes with syrup 12.00\nFresh fruit bowl 9.00",
-        "LUNCH\nCaesar Salad 14.00\nGrilled Chicken Sandwich 16.50\nTomato Soup 8.00",
-        "DRINKS\nCoffee 3.50\nOrange Juice 4.00\nSparkling Water 2.50"
-      ]
-    }
-  `;
+You are an expert in analyzing digital catalogues, menus, and price lists to identify logical product or service categories.
+
+Analyze the following OCR text and split it into logical category chunks.
+
+---
+OCR TEXT (in ${language}):
+${ocrText}
+---
+
+### STRICT OUTPUT REQUIREMENTS
+1. Return ONLY a valid JSON object — **no commentary, no markdown, no explanations**.
+2. The structure MUST be:
+   {
+     "chunks": [
+       "Category name\\nItem 1 ...\\nItem 2 ...",
+       "Category name\\nItem 1 ...\\nItem 2 ...",
+       ...
+     ]
+   }
+3. The JSON must start with '{' and end with '}' — **no \`\`\`json** or other formatting.
+4. Each chunk must include:
+   - The category name (e.g., "BREAKFAST", "DRINKS")
+   - All items, descriptions, and prices belonging to that category
+5. Ensure **unique category names**; merge duplicates when appropriate.
+6. If the text has no clear categories, group similar items logically.
+7. Keep only text in ${language} — remove other languages if present.
+8. Remove any unrelated content (address, website, company info, etc.).
+9. Do not invent new items or modify existing text, just group it properly.
+10. Escape all double quotes (use \\" instead of " inside strings).
+
+### Example Output
+{
+  "chunks": [
+    "BREAKFAST\\nScrambled Eggs 8.50\\nPancakes with syrup 12.00",
+    "LUNCH\\nCaesar Salad 14.00\\nGrilled Chicken Sandwich 16.50",
+    "DRINKS\\nCoffee 3.50\\nOrange Juice 4.00"
+  ]
+}
+`;
 }
 
 export function generatePromptForCategoryProcessing(
@@ -63,7 +75,7 @@ export function generatePromptForCategoryProcessing(
     1. Return ONLY the JSON object for ONE category, no additional text or formatting
     2. Start your response directly with { and end with }
     3. Extract the category name from the text chunk
-    4.
+    4. Item name must be unique. If you have items with same name then return only one of them, not both.
     5. Set order to ${order}
     6. Create items array with all items found in this category chunk
     7. If prices are missing, estimate reasonable prices based on currency: ${
@@ -119,7 +131,7 @@ export function generateOrderPrompt(items, formData: any): string {
    - Are in ${
      formData.language || "English"
    } with consistent capitalization (e.g., First letter capitalized, rest lowercase).
-   - Are clear, unique, and self-explanatory.
+   - Are clear, unique on catalogue level, and self-explanatory.
    - Contain no special characters (e.g., /, -, ", ').
    - Are semantically and grammatically appropriate for the catalogue context.
 5. Ensure items names:

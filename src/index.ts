@@ -1,11 +1,14 @@
 import { fromHono } from "chanfana";
 import { Hono } from "hono";
-import { AIGeneration } from "./endpoints/aiGeneration";
-import { OCRImport } from "./endpoints/ocrImport";
-import { DailySubscriptionCheck } from "./endpoints/dailySubscriptionCheck";
-import { DailyAnalyticsProccessing } from "./endpoints/dailyAnalyticsIngestion";
-import { AllAnalyticsProccessing } from "./endpoints/allAnalyticsInsertion";
+import { AIGeneration } from "./handlers/aiGeneration";
+import { OCRImport } from "./handlers/ocrImport";
+import { SubscriptionProcessingJob } from "./handlers/subscriptionProcessingJob";
 import { cors } from "hono/cors";
+import { GeneratePdf } from "./handlers/generatePdf";
+import { GenerateImages } from "./handlers/generateImages";
+import { AppContext, Env } from "./types";
+import { supabaseClient } from "./lib/supabase";
+import { AnalyticsProcessingJob } from "./handlers/analyticsProcessingJob";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -24,8 +27,16 @@ app.use(
 
 openapi.post("/api/ai", AIGeneration);
 openapi.post("/api/ocr", OCRImport);
-openapi.post("/api/subscription/check", DailySubscriptionCheck);
-openapi.get("/api/analytics/", DailyAnalyticsProccessing);
-openapi.get("/api/analytics/all", AllAnalyticsProccessing);
+openapi.get("/api/generate/pdf", GeneratePdf);
+openapi.post("/api/generate/images", GenerateImages);
 
-export default app;
+// --- test: http://127.0.0.1:8787/__scheduled?cron=*+*+*+*+*
+export default {
+  fetch: app.fetch,
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+    const analyticsProccessingJob = new AnalyticsProcessingJob();
+    await analyticsProccessingJob.handle(env, "daily");
+    const subscriptionProcessingJob = new SubscriptionProcessingJob();
+    await subscriptionProcessingJob.handle(env);
+  },
+};

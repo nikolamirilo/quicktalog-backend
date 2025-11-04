@@ -1,4 +1,4 @@
-import { Theme } from "@quicktalog/common";
+import { CatalogueCategory, CategoryItem, Theme } from "@quicktalog/common";
 import type { Context } from "hono";
 import z from "zod";
 import { optional } from "zod/v4";
@@ -30,6 +30,11 @@ export const OCRImportRequestSchema = z.object({
   shouldGenerateImages: z.boolean().optional(),
 });
 
+export type BasicResponse = {
+  result: CatalogueCategory[];
+  success: boolean;
+};
+
 export type GenerationRequest = z.infer<typeof AIGenerationRequestSchema>;
 
 export type Env = {
@@ -37,6 +42,13 @@ export type Env = {
   SUPABASE_ANON_KEY: string;
   SUPABASE_URL: string;
   UNSPLASH_ACCESS_KEY: string;
+  APP_URL: string;
+  POSTHOG_HOST: string;
+  POSTHOG_API_KEY: string;
+  POSTHOG_PROJECT_ID: string;
+  MYBROWSER: Fetcher;
+  database: D1Database;
+  ENVIRONMENT: "test" | "prod";
 };
 
 export type AppContext = Context<{ Bindings: Env }>;

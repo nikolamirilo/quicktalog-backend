@@ -1,32 +1,41 @@
-import { ImageSearchResult } from "../types";
+import { SupabaseClient } from "@supabase/supabase-js";
 
-export function parseImageResult(content: string): ImageSearchResult | null {
+export async function revalidateData(app_url: string) {
+  await fetch(`${app_url}/api/revalidate`);
+}
+export async function createInitialCatalogue(
+  database: SupabaseClient,
+  slug: string,
+  formData: any,
+  source: string,
+  userId: string
+) {
   try {
-    const cleaned = content.replace(/```json\n?|\n?```/g, "").trim();
-    const parsed = JSON.parse(cleaned);
-    const url =
-      parsed.url || parsed.image_url || parsed.imageUrl || parsed.link;
+    const catalogueData = {
+      name: slug || formData.name,
+      status: "in preparation",
+      title: formData.title,
+      currency: formData.currency,
+      theme: formData.theme,
+      subtitle: formData.subtitle,
+      created_by: userId,
+      logo: "",
+      legal: {},
+      partners: [],
+      configuration: {},
+      contact: [],
+      services: [],
+      source: source,
+    };
 
-    if (url && typeof url === "string" && url.startsWith("http")) {
-      return {
-        url,
-        source: parsed.source || "unknown",
-        searchTerm: parsed.searchTerm || parsed.search_term,
-      };
-    }
-  } catch {
-    const urlMatch = content.match(
-      /https?:\/\/[^\s"'<>]+\.(jpg|jpeg|png|webp|gif)/i
-    );
-    if (urlMatch) {
-      return {
-        url: urlMatch[0],
-        source: "extracted",
-      };
-    }
+    const { error } = await database.from("catalogues").insert([catalogueData]);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error("Error creating initial catalogue:", error);
+    return false;
   }
-
-  return null;
 }
 
 export const extractJSONObjectFromResponse = (response: string) => {
@@ -96,4 +105,32 @@ export const extractJSONFromResponse = <T = any>(
   }
 
   return parsedData as T;
+};
+
+export const safeExtractJSONFromResponse = <T = any>(
+  response: string,
+  type: "array" | "object" = "object"
+): T => {
+  try {
+    return extractJSONFromResponse<T>(response, type);
+  } catch (err) {
+    console.warn("⚠️ Initial parse failed, cleaning and retrying...");
+
+    // Extract possible JSON region
+    const match = response.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+    if (!match) throw new Error("No JSON structure found");
+
+    let cleaned = match[0]
+      .replace(/[\n\r\t]+/g, " ") // remove newlines/tabs
+      .replace(/“|”|„|‟/g, '"') // replace fancy quotes
+      .replace(/(?<!\\)"/g, '\\"') // escape unescaped quotes
+      .replace(/\\"([a-zA-Z0-9_]+)\\":/g, '"$1":'); // unescape field names
+
+    try {
+      return JSON.parse(cleaned);
+    } catch (finalErr) {
+      console.error("❌ Still failed after cleanup", finalErr);
+      throw finalErr;
+    }
+  }
 };

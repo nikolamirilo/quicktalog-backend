@@ -1,50 +1,17 @@
-import { CatalogueCategory, layouts } from "@quicktalog/common";
+import { CatalogueCategory, CategoryItem, layouts } from "@quicktalog/common";
 import { Env, GenerationRequest } from "../types";
-import { parseImageResult } from "../helpers";
+import {
+  extractJSONArrayFromResponse,
+  extractJSONObjectFromResponse,
+} from "../helpers";
 import {
   DEEPSEEK_BASE_URL,
   FALLBACK_IMAGE_URL,
   UNSPLASH_BASE_URL,
 } from "../constants";
 
-export const insertCatalogueData = async (
-  supabase: any,
-  formData: GenerationRequest["formData"],
-  services: CatalogueCategory[],
-  userId: string,
-  slug: string,
-  source: "ai_prompt" | "ocr_import" | "builder"
-) => {
-  const catalogueData = {
-    name: slug,
-    status: "active" as const,
-    title: formData.title,
-    currency: formData.currency,
-    theme: formData.theme,
-    subtitle: formData.subtitle,
-    created_by: userId,
-    logo: "",
-    legal: {},
-    partners: [],
-    configuration: {},
-    contact: [],
-    services: services,
-    source,
-  };
-
-  const { error } = await supabase
-    .from("catalogues")
-    .insert([catalogueData])
-    .select();
-
-  if (error) {
-    throw new Error(`Failed to insert catalogue: ${error.message}`);
-  }
-  return slug;
-};
-
 export const baseCategorySchema = {
-  name: "Name of category (e.g. Lunch, Breakfast, Welness, Mobile Phones, Laptops, etc.)",
+  name: "Name of category",
   layout: "variant_1 | variant_2 | variant_3 | variant_4",
   order: 1,
   items: [
@@ -56,6 +23,13 @@ export const baseCategorySchema = {
     },
   ],
 };
+
+export const rules = `
+1. Category name must be unique on catalogue level. If there are 2 categories with same name merge them (their items) and remove duplicates.
+2. Item name must be unique on catalogue level (no 2 same items allowed).
+3. Name of category and item should be logical and make sense. They must be typed in Regular Case format
+4. Order property is used to set order of items displayed in the catalogue. Starting value is 0 and next category shiould always have +1 value for order.
+`;
 
 export const baseSchema = {
   services: [baseCategorySchema],
@@ -100,23 +74,26 @@ async function searchUnsplash(
 }
 
 async function searchWithAI(
-  query: string,
+  categoryItems: CatalogueCategory["items"],
   api_key: string
-): Promise<string | null> {
+): Promise<CatalogueCategory["items"] | null> {
   const requestBody = {
     model: "deepseek-chat",
     messages: [
       {
         role: "system",
-        content:
-          "You are an expert image researcher. Find high-quality, free images from Unsplash, Pexels, or Pixabay. " +
-          'Return ONLY a JSON object with this exact structure: {"url": "direct_image_url", "source": "source_name", "searchTerm": "term_used"}. ' +
-          "The URL must be a direct link to the image file. Verify the image is relevant and accessible. " +
-          "If searching in a non-English language, translate to English first. Take small size of image.",
+        content: `You are an expert image researcher. Find high-quality, free images from Unsplash, Pexels, or Pixabay. " +
+          'Return ONLY a JSON object with same data as here ${JSON.stringify(
+            categoryItems
+          )} just with updated image value for each item.' +
+          "The URL of images must be a direct link to the image file. Verify the image is relevant and accessible. " +
+          "If searching in a non-English language, translate to English first. Take small size of image. IMPORTANT: If item is named something specific like 'Momofuku Tribute Ribs' search only for ribs. If you are not sure what exactly something is search for name of category, in this case 'meat' or 'stake'.`,
       },
       {
         role: "user",
-        content: `Find a high-quality image for: "${query}". Return only the JSON object, no explanations.`,
+        content: `Find a good quality images for category items: "${JSON.stringify(
+          categoryItems
+        )}". Return only the JSON object, no explanations. It should contain same data as before with only UPDATED image property for each item, nothing else should be updated. You should return in same structure as input category just with updated images for each item in items. At the end of each image URL if they are from pexels add '?auto=compress&cs=tinysrgb&h=350. DO NOT UPDATE ANYTHING ASIDE FROM IMAGES!!!'`,
       },
     ],
     stream: false,
@@ -145,20 +122,17 @@ async function searchWithAI(
       return null;
     }
 
-    const result = parseImageResult(content);
+    const result: CatalogueCategory["items"] =
+      extractJSONArrayFromResponse(content);
 
-    if (result?.url) {
-      console.log(
-        `Found image via AI from ${
-          result.source || "unknown source"
-        } for "${query}"`
-      );
-      return result.url;
+    if (result) {
+      console.log("Updated category items:", categoryItems);
+      return result;
     }
 
     return null;
   } catch (error) {
-    console.error(`DeepSeek AI error for "${query}":`, error);
+    console.error(`DeepSeek AI error while generating images":`, error);
     return null;
   }
 }
@@ -168,20 +142,22 @@ export const layoutData = layouts.map((l) => ({
   description: l.description,
 }));
 
-export async function generateImage(query: string, env: Env): Promise<string> {
-  if (!query || query.trim().length === 0) {
+export async function generateImage(
+  category: CatalogueCategory,
+  env: Env
+): Promise<CatalogueCategory> {
+  if (category.items.length === 0) {
     console.warn("Empty query provided, using fallback image");
-    return FALLBACK_IMAGE_URL;
+    return category;
   }
-  const aiUrl = await searchWithAI(query, env.DEEPSEEK_API_KEY);
-  if (aiUrl) {
-    return `${aiUrl}?auto=compress&cs=tinysrgb&h=350`;
-  }
-  const unsplashUrl = await searchUnsplash(query, env.UNSPLASH_ACCESS_KEY);
-  if (unsplashUrl) {
-    return unsplashUrl;
+  const enrichedCategoryDeepseek = await searchWithAI(
+    category.items,
+    env.DEEPSEEK_API_KEY
+  );
+  if (enrichedCategoryDeepseek) {
+    return { ...category, items: enrichedCategoryDeepseek };
   }
 
-  console.warn(`No image found for "${query}", using fallback image`);
-  return FALLBACK_IMAGE_URL;
+  console.warn(`No image found for "${category.name}", using fallback image`);
+  return category;
 }
