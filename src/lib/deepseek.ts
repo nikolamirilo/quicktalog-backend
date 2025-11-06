@@ -1,6 +1,10 @@
 import OpenAI from "openai";
 
-export async function chatCompletion(prompt: string, apiKey: string) {
+export async function chatCompletion(
+  prompt: string,
+  apiKey: string,
+  model?: string
+) {
   const openai = new OpenAI({
     baseURL: "https://api.deepseek.com",
     apiKey: apiKey,
@@ -8,7 +12,7 @@ export async function chatCompletion(prompt: string, apiKey: string) {
 
   const completion = await openai.chat.completions.create({
     messages: [{ role: "system", content: prompt }],
-    model: "deepseek-chat",
+    model: model || "deepseek-chat",
   });
 
   return completion.choices[0].message.content;

@@ -46,177 +46,159 @@ export class AIGeneration extends OpenAPIRoute {
     const data = await this.getValidatedData<typeof this.schema>();
     const { prompt, formData, shouldGenerateImages, userId } = data.body;
 
+    // Validation
     if (!prompt?.trim()) {
       return c.json({ error: "Prompt is required" }, 400);
     }
-
     if (!formData?.name?.trim()) {
       return c.json({ error: "Service name is required" }, 400);
     }
-    const generationPrompt = generatePromptForAI(
-      prompt,
-      formData,
-      shouldGenerateImages
-    );
+
     const database = supabaseClient(
       c.env.SUPABASE_URL,
       c.env.SUPABASE_ANON_KEY
     );
     const slug = generateUniqueSlug(formData.name) || formData.name;
-    const catalogueCreationRes = await createInitialCatalogue(
+
+    // Create initial catalogue entry
+    const catalogueCreated = await createInitialCatalogue(
       database,
       slug,
       formData,
       "ai_prompt",
       userId
     );
-    if (catalogueCreationRes == true) {
-      try {
-        const aiResponse = await chatCompletion(
-          generationPrompt,
-          c.env.DEEPSEEK_API_KEY
+
+    if (!catalogueCreated) {
+      console.error("❌ Failed to create initial catalogue");
+      return c.json({ error: "Failed to create initial catalogue" }, 500);
+    }
+
+    try {
+      console.log("🤖 Generating catalogue with AI...");
+
+      const generationPrompt = generatePromptForAI(
+        prompt,
+        formData,
+        shouldGenerateImages
+      );
+      const aiResponse = await chatCompletion(
+        generationPrompt,
+        c.env.DEEPSEEK_API_KEY,
+        "deepseek-reasoner"
+      );
+
+      const generatedData = extractJSONArrayFromResponse(aiResponse);
+      console.log(`📦 Generated ${generatedData.length} categories`);
+
+      // Order categories with AI (with fallback to original order)
+      console.log("🔄 Ordering categories...");
+      let orderedItems = generatedData;
+      let orderingFailed = false;
+
+      const orderingPrompt = generateOrderPrompt(generatedData, formData);
+      const orderingResponse = await chatCompletion(
+        orderingPrompt,
+        c.env.DEEPSEEK_API_KEY
+      );
+      const parsedNames = extractJSONFromResponse<string[]>(
+        orderingResponse,
+        "array"
+      );
+
+      if (
+        Array.isArray(parsedNames) &&
+        parsedNames.length === generatedData.length
+      ) {
+        orderedItems = parsedNames.map((newName, index) => ({
+          ...generatedData[index],
+          name: newName,
+          order: index,
+        }));
+
+        console.log("✅ Categories ordered successfully:");
+        orderedItems.forEach(({ order, name, items }) => {
+          console.log(`   ${order}. ${name} (${items.length} items)`);
+        });
+      } else {
+        console.log(
+          `⚠️ Ordering invalid (expected: ${generatedData.length}, received: ${
+            parsedNames?.length || 0
+          }), using original order`
         );
-
-        let generatedData: CatalogueCategory[];
-
-        try {
-          generatedData = extractJSONArrayFromResponse(aiResponse);
-        } catch (parseError) {
-          console.error("Failed to parse AI response:", aiResponse, parseError);
-          return c.json({ error: "Invalid AI response format" }, 500);
-        }
-
-        console.log("\n🔄 === CATEGORY ORDERING ===");
-        let orderedItems: CatalogueCategory[] = generatedData;
-        const orderingPrompt = generateOrderPrompt(generatedData, formData);
-
-        try {
-          const orderingResponse = await chatCompletion(
-            orderingPrompt,
-            c.env.DEEPSEEK_API_KEY
-          );
-          console.log("📥 Category ordering response received");
-
-          const parsedNames = extractJSONFromResponse<string[]>(
-            orderingResponse,
-            "array"
-          );
-
-          if (
-            Array.isArray(parsedNames) &&
-            parsedNames.length === generatedData.length
-          ) {
-            console.log(
-              "✅ Parsed valid array of category names:",
-              parsedNames
-            );
-
-            orderedItems = parsedNames.map((newName, index) => ({
-              ...orderedItems[index],
-              name: newName,
-              order: index,
-            }));
-
-            console.log("🎉 Category ordering successful!");
-            orderedItems.forEach((service) => {
-              console.log(
-                `   ${service.order}. ${service.name} (${service.items.length} items)`
-              );
-            });
-          } else {
-            console.log("⚠️ Ordering array invalid or length mismatch:");
-            console.log(
-              "   Expected:",
-              generatedData.length,
-              "Received:",
-              parsedNames?.length || 0
-            );
-            orderedItems = generatedData;
-          }
-        } catch (e) {
-          console.error("💥 Failed to parse category ordering response:", e);
-          orderedItems = generatedData;
-        }
-
-        const catalogueData = {
-          name: slug || formData.name,
-          status: "active",
-          title: formData.title,
-          currency: formData.currency,
-          theme: formData.theme,
-          subtitle: formData.subtitle,
-          created_by: userId,
-          logo: "",
-          legal: {},
-          partners: [],
-          configuration: {},
-          contact: [],
-          services: orderedItems,
-          source: "ai_prompt",
-        };
-
-        console.log("Ordered items", orderedItems);
-
-        const { error } = await database
-          .from("catalogues")
-          .update([catalogueData])
-          .eq("name", slug);
-        if (error) {
-          console.error(
-            "❌ Error inserting data into Supabase catalogues table:",
-            error
-          );
-          return c.json({ success: false, error }, 500);
-        } else {
-          console.log("✅ Catalogue created successfully!");
-          if (shouldGenerateImages === true) {
-            c.executionCtx.waitUntil(
-              (async () => {
-                const generateImagesHandler = new GenerateImages();
-                await generateImagesHandler.handle(c, orderedItems, slug);
-              })()
-            );
-            console.log("Started with images search and update of items");
-          } else {
-            console.log(
-              "ShouldGenerateImages set to false, skipping this step"
-            );
-          }
-          console.log("💾 Inserting usage record...");
-          const { error: errorOcrUsageEntry } = await database
-            .from("prompts")
-            .insert([{ user_id: userId, catalogue: slug }]);
-
-          if (errorOcrUsageEntry) {
-            console.error(
-              "❌ Error inserting data into Supabase ocr table:",
-              errorOcrUsageEntry
-            );
-          }
-          console.log("\n🎉 === PROCESS COMPLETED SUCCESSFULLY ===");
-          return c.json({ success: true, slug: slug }, 200);
-        }
-      } catch (error) {
-        console.error(
-          "Error occured while generating catalogue using AI",
-          error
-        );
-        await database
-          .from("catalogues")
-          .update({ services: [], status: "error" })
-          .eq("name", slug);
-        return c.json(
-          {
-            message: "Error occured while generating catalogue using AI",
-            error,
-          },
-          500
-        );
-      } finally {
-        await revalidateData(c.env.APP_URL);
+        orderingFailed = true;
       }
-    } else {
-      console.error("Error occured while inserting initial catalogue");
+
+      // Save catalogue to database
+      const catalogueData = {
+        name: slug,
+        status: "active",
+        title: formData.title,
+        currency: formData.currency,
+        theme: formData.theme,
+        subtitle: formData.subtitle,
+        created_by: userId,
+        logo: "",
+        legal: {},
+        partners: [],
+        configuration: {},
+        contact: [],
+        services: orderedItems,
+        source: "ai_prompt",
+      };
+
+      const { error: saveError } = await database
+        .from("catalogues")
+        .update(catalogueData)
+        .eq("name", slug);
+
+      if (saveError) {
+        console.error("❌ Failed to save catalogue:", saveError);
+        throw saveError;
+      }
+
+      console.log("✅ Catalogue saved successfully");
+
+      // Start image generation in background if requested
+      if (shouldGenerateImages) {
+        c.executionCtx.waitUntil(
+          (async () => {
+            const generateImagesHandler = new GenerateImages();
+            await generateImagesHandler.handle(c, orderedItems, slug);
+          })()
+        );
+        console.log("🎨 Image generation started in background");
+      }
+
+      // Record usage
+      console.log("💾 Recording usage...");
+      const { error: usageError } = await database
+        .from("prompts")
+        .insert({ user_id: userId, catalogue: slug });
+
+      if (usageError) {
+        console.error("⚠️ Failed to record usage:", usageError);
+      }
+
+      console.log("🎉 Catalogue generation completed successfully");
+      return c.json({ success: true, slug }, 200);
+    } catch (error) {
+      console.error("❌ Error generating catalogue:", error);
+
+      await database
+        .from("catalogues")
+        .update({ services: [], status: "error" })
+        .eq("name", slug);
+
+      return c.json(
+        {
+          message: "Error occurred while generating catalogue using AI",
+          error,
+        },
+        500
+      );
+    } finally {
+      await revalidateData(c.env.APP_URL);
     }
   }
 }
