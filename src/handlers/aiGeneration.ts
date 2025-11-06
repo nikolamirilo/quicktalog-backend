@@ -7,9 +7,8 @@ import { generatePromptForAI } from "../utils/ai";
 import { CatalogueCategory, generateUniqueSlug } from "@quicktalog/common";
 import {
   createInitialCatalogue,
-  extractJSONArrayFromResponse,
-  extractJSONFromResponse,
   revalidateData,
+  safeExtractJSONFromResponse,
 } from "../helpers";
 import { generateOrderPrompt } from "../utils/ocr";
 import { GenerateImages } from "./generateImages";
@@ -88,42 +87,47 @@ export class AIGeneration extends OpenAPIRoute {
         "deepseek-reasoner"
       );
 
-      const generatedData = extractJSONArrayFromResponse(aiResponse);
-      console.log(`📦 Generated ${generatedData.length} categories`);
+      console.log(aiResponse);
+      const generatedData = safeExtractJSONFromResponse(aiResponse, "object");
+      console.log(`📦 Generated ${generatedData.services.length} categories`);
 
       // Order categories with AI (with fallback to original order)
       console.log("🔄 Ordering categories...");
-      let orderedItems = generatedData;
+      let orderedItems = generatedData.services;
       let orderingFailed = false;
 
-      const orderingPrompt = generateOrderPrompt(generatedData, formData);
+      const orderingPrompt = generateOrderPrompt(
+        generatedData.services,
+        formData
+      );
       const orderingResponse = await chatCompletion(
         orderingPrompt,
         c.env.DEEPSEEK_API_KEY
       );
-      const parsedNames = extractJSONFromResponse<string[]>(
+      const extractedOrderingResponse = safeExtractJSONFromResponse<string[]>(
         orderingResponse,
         "array"
       );
 
       if (
-        Array.isArray(parsedNames) &&
-        parsedNames.length === generatedData.length
+        Array.isArray(extractedOrderingResponse) &&
+        extractedOrderingResponse.length === generatedData.length
       ) {
-        orderedItems = parsedNames.map((newName, index) => ({
-          ...generatedData[index],
+        orderedItems = extractedOrderingResponse.map((newName, index) => ({
+          ...generatedData.services[index],
           name: newName,
           order: index,
         }));
 
-        console.log("✅ Categories ordered successfully:");
         orderedItems.forEach(({ order, name, items }) => {
           console.log(`   ${order}. ${name} (${items.length} items)`);
         });
       } else {
         console.log(
-          `⚠️ Ordering invalid (expected: ${generatedData.length}, received: ${
-            parsedNames?.length || 0
+          `⚠️ Ordering invalid (expected: ${
+            generatedData.services.length
+          }, received: ${
+            extractedOrderingResponse?.length || 0
           }), using original order`
         );
         orderingFailed = true;
