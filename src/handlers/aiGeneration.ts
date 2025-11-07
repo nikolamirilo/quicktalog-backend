@@ -83,8 +83,7 @@ export class AIGeneration extends OpenAPIRoute {
       );
       const aiResponse = await chatCompletion(
         generationPrompt,
-        c.env.DEEPSEEK_API_KEY,
-        "deepseek-reasoner"
+        c.env.DEEPSEEK_API_KEY
       );
 
       console.log(aiResponse);
