@@ -1,6 +1,7 @@
 import { Bool, OpenAPIRoute } from "chanfana";
 import { type AppContext } from "../types";
 import z from "zod";
+import { revalidateData } from "../helpers";
 
 export class GeneratePdf extends OpenAPIRoute {
   schema = {
@@ -29,6 +30,8 @@ export class GeneratePdf extends OpenAPIRoute {
         },
         500
       );
+    } finally {
+      await revalidateData(c.env.APP_URL);
     }
   }
 }

@@ -126,7 +126,7 @@ async function searchWithAI(
       extractJSONArrayFromResponse(content);
 
     if (result) {
-      console.log("Updated category items:", categoryItems);
+      console.log("Updated category items:", result);
       return result;
     }
 
