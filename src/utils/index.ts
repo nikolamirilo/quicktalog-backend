@@ -1,23 +1,17 @@
-import { CatalogueCategory, CategoryItem, layouts } from "@quicktalog/common";
-import { Env, GenerationRequest } from "../types";
-import {
-  extractJSONArrayFromResponse,
-  extractJSONObjectFromResponse,
-} from "../helpers";
-import {
-  DEEPSEEK_BASE_URL,
-  FALLBACK_IMAGE_URL,
-  UNSPLASH_BASE_URL,
-} from "../constants";
+import { CatalogueCategory, layouts } from "@quicktalog/common";
+import { Env } from "../types";
+import { extractJSONArrayFromResponse } from "../helpers";
+import { DEEPSEEK_BASE_URL, UNSPLASH_BASE_URL } from "../constants";
 
 export const baseCategorySchema = {
-  name: "Name of category",
+  name: "Name of category. Always use Regular Case format. Example: Salads",
   layout: "variant_1 | variant_2 | variant_3 | variant_4",
   order: 1,
   items: [
     {
-      name: "Item Name",
-      description: "Description of Item",
+      name: "Item Name. Always use Regular Case format. Example: Grilled Chicken Salad",
+      description:
+        "Description of Item. Always use Regular Case format. If text does not make sense, rewrite it.",
       price: 12,
       image: "image url",
     },

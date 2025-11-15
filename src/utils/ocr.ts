@@ -53,14 +53,14 @@ export function generatePromptForCategoryProcessing(
   shouldGenerateImages: boolean
 ): string {
   return `
-    Role: You are an expert in creating service category configurations.
+    Role: You are an expert in creating item categories for catalogues, menus, price lists.
     Based on the provided category text chunk, generate a single category object in JSON format.
     
     Category Text Chunk: ${categoryChunk}
     
     Schema for single category: ${JSON.stringify(baseCategorySchema)}
     
-    General information about service catalogue: ${JSON.stringify(formData)}
+    General information about catalogue: ${JSON.stringify(formData)}
 
     ${
       shouldGenerateImages == true
@@ -81,7 +81,7 @@ export function generatePromptForCategoryProcessing(
     7. If prices are missing, estimate reasonable prices based on currency: ${
       formData.currency
     }
-    8. Service should be created in the language and alphabet of the text
+    8. Item and category should be created in the language and alphabet of the text
     9. Ensure all strings are properly escaped and contain no special characters like /,-,",' that could break JSON
     10. Item names should be full descriptive names
     11. Provide meaningful descriptions for items when possible
