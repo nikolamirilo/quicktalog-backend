@@ -123,10 +123,8 @@ export class AIGeneration extends OpenAPIRoute {
         });
       } else {
         console.log(
-          `⚠️ Ordering invalid (expected: ${
-            generatedData.services.length
-          }, received: ${
-            extractedOrderingResponse?.length || 0
+          `⚠️ Ordering invalid (expected: ${generatedData.services.length
+          }, received: ${extractedOrderingResponse?.length || 0
           }), using original order`
         );
         orderingFailed = true;
@@ -182,8 +180,8 @@ export class AIGeneration extends OpenAPIRoute {
       if (usageError) {
         console.error("⚠️ Failed to record usage:", usageError);
       }
-
       console.log("🎉 Catalogue generation completed successfully");
+      await revalidateData(c.env.APP_URL);
       return c.json({ success: true, slug }, 200);
     } catch (error) {
       console.error("❌ Error generating catalogue:", error);
@@ -200,8 +198,6 @@ export class AIGeneration extends OpenAPIRoute {
         },
         500
       );
-    } finally {
-      await revalidateData(c.env.APP_URL);
     }
   }
 }
