@@ -15,7 +15,7 @@ ${ocrText}
 ---
 
 ### STRICT OUTPUT REQUIREMENTS
-1. Return ONLY a valid JSON object — **no commentary, no markdown, no explanations**.
+1. Return ONLY a valid JSON object — no commentary, no markdown, no explanations.
 2. The structure MUST be:
    {
      "chunks": [
@@ -24,11 +24,11 @@ ${ocrText}
        ...
      ]
    }
-3. The JSON must start with '{' and end with '}' — **no \`\`\`json** or other formatting.
+3. The JSON must start with '{' and end with '}' — no \`\`\`json or other formatting.
 4. Each chunk must include:
    - The category name (e.g., "BREAKFAST", "DRINKS")
    - All items, descriptions, and prices belonging to that category
-5. Ensure **unique category names**; merge duplicates when appropriate.
+5. Ensure unique category names; merge duplicates when appropriate.
 6. If the text has no clear categories, group similar items logically.
 7. Keep only text in ${language} — remove other languages if present.
 8. Remove any unrelated content (address, website, company info, etc.).
@@ -106,24 +106,18 @@ export function generatePromptForCategoryProcessing(
 export function generateOrderPrompt(items, formData: any): string {
   return `You are an expert in organizing service or menu categories to optimize the customer browsing experience.
 
-**Task**: Reorder and, if necessary, rename the categories in the provided items array to create a logical, intuitive flow for customers browsing a ${
+Task: Reorder and, if necessary, rename the categories in the provided items array to create a logical, intuitive flow for customers browsing a ${
     formData.title || "catalogue"
   }.
 
-**Input Categories**: ${JSON.stringify(items.map((category) => category.name))}
+Input Categories: ${JSON.stringify(items.map((category) => category.name))}
 
-**Ordering Guidelines**:
-1. **Logical Progression**: Arrange categories in a natural sequence (e.g., appetizers → mains → desserts, or morning → afternoon → evening).
-2. **Customer Journey**: Prioritize how customers typically browse and make selections.
-3. **Closing Categories**: Place beverages, desserts, add-ons, or supplementary items at the end.
+Ordering Guidelines:
+1. Logical Progression: Arrange categories in a natural sequence (e.g., appetizers → mains → desserts, or morning → afternoon → evening).
+2. Customer Journey: Prioritize how customers typically browse and make selections.
+3. Closing Categories: Place beverages, desserts, add-ons, or supplementary items at the end.
 
-**Context-Specific Rules**:
-- **Restaurants**: Appetizers → Soups/Salads → Main Courses → Desserts → Beverages
-- **Cafés**: Coffee/Tea → Breakfast → Lunch → Snacks → Desserts
-- **Beauty/Wellness**: Basic Services → Premium Treatments → Packages → Add-ons
-- **General Catalogue**: Core Items → Specialized Items → Extras/Add-ons
-
-**Requirements**:
+Requirements:
 1. Return a valid JSON array containing only category names (strings).
 2. Match the input array length (${items.length} categories).
 3. Preserve exact spelling of input category names unless renaming is needed.
@@ -139,6 +133,6 @@ export function generateOrderPrompt(items, formData: any): string {
 	- Contain no special characters (e.g., /, -, ", ')
 	- Are semantically and grammatically correct
 	- Are unique within the category
-**Output Format Example**:
+Output Format Example:
 ["Breakfast", "Lunch", "Dinner", "Desserts", "Beverages"]`;
 }
