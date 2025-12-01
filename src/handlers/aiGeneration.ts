@@ -11,7 +11,7 @@ import {
   safeExtractJSONFromResponse,
 } from "../helpers";
 import { generateOrderPrompt } from "../utils/ocr";
-import { GenerateImages } from "./generateImages";
+import { processImageGeneration } from "../helpers/imageGeneration";
 
 export class AIGeneration extends OpenAPIRoute {
   schema = {
@@ -164,8 +164,7 @@ export class AIGeneration extends OpenAPIRoute {
       if (shouldGenerateImages) {
         c.executionCtx.waitUntil(
           (async () => {
-            const generateImagesHandler = new GenerateImages();
-            await generateImagesHandler.handle(c, orderedItems, slug);
+            await processImageGeneration(c.env, orderedItems, slug);
           })()
         );
         console.log("🎨 Image generation started in background");

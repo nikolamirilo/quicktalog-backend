@@ -19,7 +19,6 @@ import {
   revalidateData,
   safeExtractJSONFromResponse,
 } from "../helpers";
-import { GenerateImages } from "./generateImages";
 
 export class OCRImport extends OpenAPIRoute {
   schema = {
@@ -267,24 +266,23 @@ export class OCRImport extends OpenAPIRoute {
 
       console.log("✅ Catalogue created successfully!");
 
-      if (shouldGenerateImages === true) {
-        c.executionCtx.waitUntil(
-          (async () => {
-            try {
-              const generator = new GenerateImages();
-              await generator.handle(c, orderedItems, slug);
-            } catch (err) {
-              console.error(
-                "[waitUntil] Background GenerateImages failed:",
-                err
-              );
-            }
-          })()
-        );
-        console.log("Started with images search and update of items");
-      } else {
-        console.log("ShouldGenerateImages set to false, skipping this step");
-      }
+      // if (shouldGenerateImages === true) {
+      //   c.executionCtx.waitUntil(
+      //     (async () => {
+      //       try {
+
+      //       } catch (err) {
+      //         console.error(
+      //           "[waitUntil] Background GenerateImages failed:",
+      //           err
+      //         );
+      //       }
+      //     })()
+      //   );
+      //   console.log("Started with images search and update of items");
+      // } else {
+      //   console.log("ShouldGenerateImages set to false, skipping this step");
+      // }
 
       console.log("💾 Inserting usage record...");
       const { error: errorOcrUsageEntry } = await database

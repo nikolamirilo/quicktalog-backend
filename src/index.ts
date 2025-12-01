@@ -5,9 +5,7 @@ import { OCRImport } from "./handlers/ocrImport";
 import { SubscriptionProcessingJob } from "./handlers/subscriptionProcessingJob";
 import { cors } from "hono/cors";
 import { GeneratePdf } from "./handlers/generatePdf";
-import { GenerateImages } from "./handlers/generateImages";
 import { AppContext, Env } from "./types";
-import { supabaseClient } from "./lib/supabase";
 import { AnalyticsProcessingJob } from "./handlers/analyticsProcessingJob";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -28,7 +26,6 @@ app.use(
 openapi.post("/api/ai", AIGeneration);
 openapi.post("/api/ocr", OCRImport);
 openapi.get("/api/generate/pdf", GeneratePdf);
-openapi.post("/api/generate/images", GenerateImages);
 
 // --- test: http://127.0.0.1:8787/__scheduled?cron=*+*+*+*+*
 export default {

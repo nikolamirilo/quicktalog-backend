@@ -78,8 +78,8 @@ async function searchWithAI(
         role: "system",
         content: `You are an expert image researcher. Find high-quality, free images from Unsplash, Pexels, or Pixabay. " +
           'Return ONLY a JSON object with same data as here ${JSON.stringify(
-            categoryItems
-          )} just with updated image value for each item.' +
+          categoryItems
+        )} just with updated image value for each item.' +
           "The URL of images must be a direct link to the image file. Verify the image is relevant and accessible. " +
           "If searching in a non-English language, translate to English first. Take small size of image. IMPORTANT: If item is named something specific like 'Momofuku Tribute Ribs' search only for ribs. If you are not sure what exactly something is search for name of category, in this case 'meat' or 'stake'.`,
       },

@@ -62,12 +62,11 @@ export function generatePromptForCategoryProcessing(
     
     General information about catalogue: ${JSON.stringify(formData)}
 
-    ${
-      shouldGenerateImages == true
-        ? `Layouts keys and description of each variant: ${JSON.stringify(
-            layoutData
-          )}. According to it use different variants for different purpose. For drinks for example use without image.`
-        : "For category layout always use value 'variant_3'"
+    ${shouldGenerateImages == true
+      ? `Layouts keys and description of each variant: ${JSON.stringify(
+        layoutData
+      )}. According to it use different variants for different purpose. For drinks for example use without image.`
+      : "For category layout always use value 'variant_3'"
     }
     
     IMPORTANT REQUIREMENTS:
@@ -78,8 +77,7 @@ export function generatePromptForCategoryProcessing(
     4. Item name must be unique. If you have items with same name then return only one of them, not both.
     5. Set order to ${order}
     6. Create items array with all items found in this category chunk
-    7. If prices are missing, estimate reasonable prices based on currency: ${
-      formData.currency
+    7. If prices are missing, estimate reasonable prices based on currency: ${formData.currency
     }
     8. Item and category should be created in the language and alphabet of the text
     9. Ensure all strings are properly escaped and contain no special characters like /,-,",' that could break JSON
@@ -104,11 +102,10 @@ export function generatePromptForCategoryProcessing(
   `;
 }
 export function generateOrderPrompt(items, formData: any): string {
-  return `You are an expert in organizing service or menu categories to optimize the customer browsing experience.
+  return `You are an expert in organizing catalogue/price list/menu categories to optimize the customer browsing experience.
 
-Task: Reorder and, if necessary, rename the categories in the provided items array to create a logical, intuitive flow for customers browsing a ${
-    formData.title || "catalogue"
-  }.
+Task: Reorder and, if necessary, rename the categories in the provided items array to create a logical, intuitive flow for customers browsing a ${formData.title || "catalogue"
+    }.
 
 Input Categories: ${JSON.stringify(items.map((category) => category.name))}
 
@@ -120,11 +117,10 @@ Ordering Guidelines:
 Requirements:
 1. Return a valid JSON array containing only category names (strings).
 2. Match the input array length (${items.length} categories).
-3. Preserve exact spelling of input category names unless renaming is needed.
+3. CRITICAL: Do NOT rename categories. You must use the EXACT names provided in the input list.
 4. Ensure category names:
-   - Are in ${
-     formData.language || "English"
-   } with consistent capitalization (e.g., First letter capitalized, rest lowercase).
+   - Are in ${formData.language || "English"
+    } with consistent capitalization (e.g., First letter capitalized, rest lowercase).
    - Are clear, unique on catalogue level, and self-explanatory.
    - Contain no special characters (e.g., /, -, ", ').
    - Are semantically and grammatically appropriate for the catalogue context.
