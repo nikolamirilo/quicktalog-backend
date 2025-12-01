@@ -1,4 +1,4 @@
-import { baseCategorySchema, layoutData } from ".";
+import { baseCategorySchema, layoutData } from "./general";
 
 export function generatePromptForCategoryDetection(
   ocrText: string,

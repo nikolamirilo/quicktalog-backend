@@ -85,10 +85,14 @@ export class OCRImport extends OpenAPIRoute {
         input_text,
         formData.language
       );
+      console.log("⏳ Sending request to DeepSeek (Timeout: 120s)...");
       const categoryDetectionResponse = await chatCompletion(
         categoryDetectionPrompt,
-        c.env.DEEPSEEK_API_KEY
+        c.env.DEEPSEEK_API_KEY,
+        undefined,
+        120000
       );
+      console.log("✅ DeepSeek response received");
 
       console.log("🔧 Parsing category detection response...");
       const categoryData = safeExtractJSONFromResponse<{ chunks: string[] }>(
@@ -134,7 +138,12 @@ export class OCRImport extends OpenAPIRoute {
           index + 1,
           shouldGenerateImages
         );
-        return chatCompletion(categoryPrompt, c.env.DEEPSEEK_API_KEY);
+        return chatCompletion(
+          categoryPrompt,
+          c.env.DEEPSEEK_API_KEY,
+          undefined,
+          60000
+        );
       });
 
       const categoryResponses = await Promise.all(categoryProcessingPromises);
@@ -187,10 +196,14 @@ export class OCRImport extends OpenAPIRoute {
       let orderedItems: CatalogueCategory[] = updatedItems;
       const orderingPrompt = generateOrderPrompt(updatedItems, formData);
 
+      console.log("⏳ Sending ordering request to DeepSeek (Timeout: 60s)...");
       const orderingResponse = await chatCompletion(
         orderingPrompt,
-        c.env.DEEPSEEK_API_KEY
+        c.env.DEEPSEEK_API_KEY,
+        undefined,
+        60000
       );
+      console.log("✅ Ordering response received");
       console.log("📥 Category ordering response received");
 
       const parsedNames = extractJSONFromResponse<string[]>(

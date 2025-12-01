@@ -1,7 +1,7 @@
 import { CatalogueCategory } from "@quicktalog/common";
 import { Env } from "../types";
 import { supabaseClient } from "../lib/supabase";
-import { generateImage } from "../utils";
+import { generateImage } from "../utils/general";
 
 export async function processImageGeneration(
     env: Env,

@@ -3,11 +3,13 @@ import OpenAI from "openai";
 export async function chatCompletion(
   prompt: string,
   apiKey: string,
-  model?: string
+  model?: string,
+  timeout: number = 60000
 ) {
   const openai = new OpenAI({
     baseURL: "https://api.deepseek.com",
     apiKey: apiKey,
+    timeout: timeout,
   });
 
   const completion = await openai.chat.completions.create({

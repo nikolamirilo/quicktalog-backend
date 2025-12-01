@@ -81,10 +81,14 @@ export class AIGeneration extends OpenAPIRoute {
         formData,
         shouldGenerateImages
       );
+      console.log("⏳ Sending generation request to DeepSeek (Timeout: 120s)...");
       const aiResponse = await chatCompletion(
         generationPrompt,
-        c.env.DEEPSEEK_API_KEY
+        c.env.DEEPSEEK_API_KEY,
+        undefined,
+        120000
       );
+      console.log("✅ DeepSeek generation response received");
 
       console.log(aiResponse);
       const generatedData = safeExtractJSONFromResponse(aiResponse, "object");
@@ -99,10 +103,14 @@ export class AIGeneration extends OpenAPIRoute {
         generatedData.services,
         formData
       );
+      console.log("⏳ Sending ordering request to DeepSeek (Timeout: 60s)...");
       const orderingResponse = await chatCompletion(
         orderingPrompt,
-        c.env.DEEPSEEK_API_KEY
+        c.env.DEEPSEEK_API_KEY,
+        undefined,
+        60000
       );
+      console.log("✅ Ordering response received");
       const extractedOrderingResponse = safeExtractJSONFromResponse<string[]>(
         orderingResponse,
         "array"
