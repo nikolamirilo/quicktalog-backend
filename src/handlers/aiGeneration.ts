@@ -85,7 +85,6 @@ export class AIGeneration extends OpenAPIRoute {
       const aiResponse = await chatCompletion(
         generationPrompt,
         c.env.DEEPSEEK_API_KEY,
-        undefined,
         120000
       );
       console.log("✅ DeepSeek generation response received");
@@ -107,7 +106,6 @@ export class AIGeneration extends OpenAPIRoute {
       const orderingResponse = await chatCompletion(
         orderingPrompt,
         c.env.DEEPSEEK_API_KEY,
-        undefined,
         60000
       );
       console.log("✅ Ordering response received");

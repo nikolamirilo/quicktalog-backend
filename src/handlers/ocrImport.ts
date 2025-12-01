@@ -89,7 +89,6 @@ export class OCRImport extends OpenAPIRoute {
       const categoryDetectionResponse = await chatCompletion(
         categoryDetectionPrompt,
         c.env.DEEPSEEK_API_KEY,
-        undefined,
         120000
       );
       console.log("✅ DeepSeek response received");
@@ -141,7 +140,6 @@ export class OCRImport extends OpenAPIRoute {
         return chatCompletion(
           categoryPrompt,
           c.env.DEEPSEEK_API_KEY,
-          undefined,
           60000
         );
       });
@@ -200,7 +198,6 @@ export class OCRImport extends OpenAPIRoute {
       const orderingResponse = await chatCompletion(
         orderingPrompt,
         c.env.DEEPSEEK_API_KEY,
-        undefined,
         60000
       );
       console.log("✅ Ordering response received");
