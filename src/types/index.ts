@@ -1,16 +1,15 @@
-import { CatalogueCategory, CategoryItem, Theme } from "@quicktalog/common";
+import { CategoryBlock, Item, Theme } from "@quicktalog/common";
 import type { Context } from "hono";
 import z from "zod";
-import { optional } from "zod/v4";
 
 export const AIGenerationRequestSchema = z.object({
   formData: z.object({
     name: z.string(),
     language: z.string(),
     theme: z.custom<Theme>(),
+    business_type: z.string(),
     currency: z.string(),
-    title: z.string(),
-    subtitle: z.string(),
+    heading: z.string(),
   }),
   prompt: z.string(),
   userId: z.string(),
@@ -21,9 +20,9 @@ export const OCRImportRequestSchema = z.object({
     name: z.string(),
     language: z.string(),
     theme: z.custom<Theme>(),
+    business_type: z.string(),
     currency: z.string(),
-    title: z.string(),
-    subtitle: z.string(),
+    heading: z.string(),
   }),
   input_text: z.string(),
   userId: z.string(),
@@ -31,7 +30,7 @@ export const OCRImportRequestSchema = z.object({
 });
 
 export type BasicResponse = {
-  result: CatalogueCategory[];
+  result: CategoryBlock[];
   success: boolean;
 };
 
@@ -40,6 +39,7 @@ export type GenerationRequest = z.infer<typeof AIGenerationRequestSchema>;
 export type Env = {
   DEEPSEEK_API_KEY: string;
   SUPABASE_ANON_KEY: string;
+  SUPABASE_SERVICE_ROLE_KEY: string;
   SUPABASE_URL: string;
   UNSPLASH_ACCESS_KEY: string;
   APP_URL: string;

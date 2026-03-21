@@ -1,24 +1,21 @@
 import { Bool, OpenAPIRoute } from "chanfana";
-import {
-  BasicResponse,
-  OCRImportRequestSchema,
-  type AppContext,
-} from "../types";
+import { OCRImportRequestSchema, type AppContext } from "../types";
 import z from "zod";
 import { chatCompletion } from "../lib/deepseek";
-import { supabaseClient } from "../lib/supabase";
+import { supabaseAdmin } from "../lib/supabase";
 import {
   generateOrderPrompt,
   generatePromptForCategoryDetection,
   generatePromptForCategoryProcessing,
 } from "../utils/ocr";
-import { CatalogueCategory, generateUniqueSlug } from "@quicktalog/common";
+import { CategoryBlock, generateUniqueSlug } from "@quicktalog/common";
 import {
   createInitialCatalogue,
   extractJSONFromResponse,
   revalidateData,
   safeExtractJSONFromResponse,
 } from "../helpers";
+import { processImageGeneration } from "../helpers/imageGeneration";
 
 export class OCRImport extends OpenAPIRoute {
   schema = {
@@ -59,9 +56,9 @@ export class OCRImport extends OpenAPIRoute {
 
     console.log("🚀 === OCR PROCESSING STARTED ===");
     const start = performance.now();
-    const database = supabaseClient(
+    const database = supabaseAdmin(
       c.env.SUPABASE_URL,
-      c.env.SUPABASE_ANON_KEY
+      c.env.SUPABASE_SERVICE_ROLE_KEY,
     );
     const slug = generateUniqueSlug(formData.name);
     const catalogueCreationRes = await createInitialCatalogue(
@@ -69,7 +66,7 @@ export class OCRImport extends OpenAPIRoute {
       slug,
       formData,
       "ocr_import",
-      userId
+      userId,
     );
 
     if (catalogueCreationRes !== true) {
@@ -83,35 +80,35 @@ export class OCRImport extends OpenAPIRoute {
       console.log(input_text);
       const categoryDetectionPrompt = generatePromptForCategoryDetection(
         input_text,
-        formData.language
+        formData.language,
       );
       console.log("⏳ Sending request to DeepSeek (Timeout: 120s)...");
       const categoryDetectionResponse = await chatCompletion(
         categoryDetectionPrompt,
         c.env.DEEPSEEK_API_KEY,
-        120000
+        120000,
       );
       console.log("✅ DeepSeek response received");
 
       console.log("🔧 Parsing category detection response...");
       const categoryData = safeExtractJSONFromResponse<{ chunks: string[] }>(
         categoryDetectionResponse,
-        "object"
+        "object",
       );
 
       console.log(
         "✅ Parsed category data:",
-        JSON.stringify(categoryData, null, 2)
+        JSON.stringify(categoryData, null, 2),
       );
 
       if (!Array.isArray(categoryData.chunks)) {
         console.log(
           "❌ ERROR: chunks is not an array:",
           typeof categoryData.chunks,
-          categoryData.chunks
+          categoryData.chunks,
         );
         throw new Error(
-          "Invalid chunks structure in category detection response"
+          "Invalid chunks structure in category detection response",
         );
       }
 
@@ -119,7 +116,7 @@ export class OCRImport extends OpenAPIRoute {
       console.log(
         "🎉 Successfully extracted",
         categoryChunks.length,
-        "category chunks"
+        "category chunks",
       );
 
       // STEP 2: PARALLEL CATEGORY PROCESSING
@@ -127,7 +124,7 @@ export class OCRImport extends OpenAPIRoute {
       console.log(
         "🔄 Processing",
         categoryChunks.length,
-        "categories in parallel..."
+        "categories in parallel...",
       );
 
       const categoryProcessingPromises = categoryChunks.map((chunk, index) => {
@@ -135,47 +132,53 @@ export class OCRImport extends OpenAPIRoute {
           chunk,
           formData,
           index + 1,
-          shouldGenerateImages
+          shouldGenerateImages,
         );
-        return chatCompletion(
-          categoryPrompt,
-          c.env.DEEPSEEK_API_KEY,
-          60000
-        );
+        return chatCompletion(categoryPrompt, c.env.DEEPSEEK_API_KEY, 60000);
       });
 
       const categoryResponses = await Promise.all(categoryProcessingPromises);
       console.log(
         "📥 All category responses received! Count:",
-        categoryResponses.length
+        categoryResponses.length,
       );
 
       // STEP 3: RESPONSE PROCESSING & VALIDATION
       console.log("\n🔧 === STEP 3: RESPONSE PROCESSING & VALIDATION ===");
-      const items: CatalogueCategory[] = [];
+      const items: CategoryBlock[] = [];
 
       for (let i = 0; i < categoryResponses.length; i++) {
         const response = categoryResponses[i];
-        const categoryData = extractJSONFromResponse<CatalogueCategory>(
-          response,
-          "object"
-        );
+        const parsedCategory = extractJSONFromResponse<any>(response, "object");
 
         console.log(
           `✅ Category ${i + 1} parsed data:`,
-          JSON.stringify(categoryData, null, 2)
+          JSON.stringify(parsedCategory, null, 2),
         );
 
-        if (
-          categoryData &&
-          categoryData.name &&
-          Array.isArray(categoryData.items)
-        ) {
-          items.push(categoryData);
+        if (parsedCategory && parsedCategory.name && Array.isArray(parsedCategory.items)) {
+          // Map into the proper CategoryBlock structure matching @quicktalog/common types
+          const mappedBlock: CategoryBlock = {
+            id: crypto.randomUUID(),
+            type: "category",
+            name: parsedCategory.name,
+            order: parsedCategory.order !== undefined ? parsedCategory.order : i,
+            isExpanded: true,
+            layout: parsedCategory.layout || "variant_3",
+            items: parsedCategory.items.map((item: any, itemIndex: number) => ({
+              id: crypto.randomUUID(),
+              order: item.order !== undefined ? item.order : itemIndex,
+              name: item.name,
+              description: item.description || "",
+              image: item.image || "",
+              price: item.price || 0,
+            })),
+          };
+          items.push(mappedBlock);
           console.log(`🎉 Category ${i + 1} added to items array!`);
         } else {
           console.error(`❌ Invalid category structure for category ${i + 1}:`);
-          console.error(`   📛 Has name: ${!!categoryData.name}`);
+          console.error(`   📛 Has name: ${!!parsedCategory?.name}`);
         }
       }
 
@@ -187,25 +190,24 @@ export class OCRImport extends OpenAPIRoute {
         throw new Error("No valid items were generated");
       }
 
-      let updatedItems = items;
+      const updatedItems = items;
 
       // STEP 4: CATEGORY ORDERING
       console.log("\n🔄 === STEP 4: CATEGORY ORDERING ===");
-      let orderedItems: CatalogueCategory[] = updatedItems;
+      let orderedItems: CategoryBlock[] = updatedItems;
       const orderingPrompt = generateOrderPrompt(updatedItems, formData);
 
       console.log("⏳ Sending ordering request to DeepSeek (Timeout: 60s)...");
       const orderingResponse = await chatCompletion(
         orderingPrompt,
         c.env.DEEPSEEK_API_KEY,
-        60000
+        60000,
       );
       console.log("✅ Ordering response received");
-      console.log("📥 Category ordering response received");
 
       const parsedNames = extractJSONFromResponse<string[]>(
         orderingResponse,
-        "array"
+        "array",
       );
 
       if (
@@ -215,7 +217,7 @@ export class OCRImport extends OpenAPIRoute {
         console.log("✅ Parsed valid array of category names:", parsedNames);
 
         const nameToItem = new Map(
-          updatedItems.map((item) => [item.name, item])
+          updatedItems.map((item) => [item.name, item]),
         );
 
         orderedItems = parsedNames
@@ -223,12 +225,12 @@ export class OCRImport extends OpenAPIRoute {
             const original = nameToItem.get(name);
             return original ? { ...original, order: index } : null;
           })
-          .filter(Boolean);
+          .filter(Boolean) as CategoryBlock[];
 
         console.log("🎉 Category ordering successful!");
         orderedItems.forEach((service) => {
           console.log(
-            `   ${service.order}. ${service.name} (${service.items.length} items)`
+            `   ${service.order}. ${service.name} (${service.items.length} items)`,
           );
         });
       } else {
@@ -237,62 +239,34 @@ export class OCRImport extends OpenAPIRoute {
           "   Expected:",
           updatedItems.length,
           "Received:",
-          parsedNames?.length || 0
+          parsedNames?.length || 0,
         );
         orderedItems = updatedItems;
       }
 
       console.log("\n === STEP 5: DATABASE OPERATIONS ===");
 
-      const catalogueData = {
-        name: slug || formData.name,
-        status: "active",
-        title: formData.title,
-        currency: formData.currency,
-        theme: formData.theme,
-        subtitle: formData.subtitle,
-        created_by: userId,
-        logo: "",
-        legal: {},
-        partners: [],
-        configuration: {},
-        contact: [],
-        services: orderedItems,
-        source: "ocr_import",
-      };
-
       const { error } = await database
         .from("catalogues")
-        .update([catalogueData])
+        .update({ status: "active", content: orderedItems })
         .eq("name", slug);
 
       if (error) {
-        console.error(
-          "❌ Error inserting data into Supabase catalogues table:",
-          error
-        );
+        console.error("❌ Error updating catalogue in Supabase:", error);
         throw error;
       }
 
-      console.log("✅ Catalogue created successfully!");
+      console.log("✅ Catalogue updated successfully!");
 
-      // if (shouldGenerateImages === true) {
-      //   c.executionCtx.waitUntil(
-      //     (async () => {
-      //       try {
-
-      //       } catch (err) {
-      //         console.error(
-      //           "[waitUntil] Background GenerateImages failed:",
-      //           err
-      //         );
-      //       }
-      //     })()
-      //   );
-      //   console.log("Started with images search and update of items");
-      // } else {
-      //   console.log("ShouldGenerateImages set to false, skipping this step");
-      // }
+      // Start image generation in background if requested
+      if (shouldGenerateImages) {
+        c.executionCtx.waitUntil(
+          (async () => {
+            await processImageGeneration(c.env, orderedItems, slug);
+          })(),
+        );
+        console.log("🎨 Image generation started in background");
+      }
 
       console.log("💾 Inserting usage record...");
       const { error: errorOcrUsageEntry } = await database
@@ -302,14 +276,14 @@ export class OCRImport extends OpenAPIRoute {
       if (errorOcrUsageEntry) {
         console.error(
           "❌ Error inserting data into Supabase ocr table:",
-          errorOcrUsageEntry
+          errorOcrUsageEntry,
         );
       }
 
       console.log("\n🎉 === PROCESS COMPLETED SUCCESSFULLY ===");
       console.log(
         "🔄 Categories properly ordered:",
-        orderedItems.map((s) => `${s.order}. ${s.name}`).join(" → ")
+        orderedItems.map((s) => `${s.order}. ${s.name}`).join(" → "),
       );
 
       return c.json({ success: true, slug: slug }, 200);
@@ -318,7 +292,7 @@ export class OCRImport extends OpenAPIRoute {
       console.error(error);
       await database
         .from("catalogues")
-        .update({ services: [], status: "error" })
+        .update({ content: [], status: "error" })
         .eq("name", slug);
       return c.json(
         {
@@ -326,7 +300,7 @@ export class OCRImport extends OpenAPIRoute {
           message: `Error occured while doing OCR import of catalogue ${formData.name}`,
           error,
         },
-        500
+        500,
       );
     } finally {
       await revalidateData(c.env.APP_URL);
@@ -336,7 +310,7 @@ export class OCRImport extends OpenAPIRoute {
       const minutes = Math.floor(durationSec / 60);
       const seconds = (durationSec % 60).toFixed(2);
       console.log(
-        `OCR Import for ${formData.name} took ${minutes} min ${seconds} sec`
+        `OCR Import for ${formData.name} took ${minutes} min ${seconds} sec`,
       );
     }
   }

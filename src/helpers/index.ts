@@ -1,3 +1,4 @@
+import { defaultCatalogueData, Source } from "@quicktalog/common";
 import { SupabaseClient } from "@supabase/supabase-js";
 
 export async function revalidateData(app_url: string) {
@@ -7,25 +8,34 @@ export async function createInitialCatalogue(
   database: SupabaseClient,
   slug: string,
   formData: any,
-  source: string,
-  userId: string
+  source: Source,
+  userId: string,
 ) {
   try {
+    const {
+      createdBy,
+      createdAt,
+      updatedAt,
+      businessType,
+      ...restDefault
+    } = defaultCatalogueData;
+
     const catalogueData = {
-      name: slug || formData.name,
+      ...restDefault,
       status: "in preparation",
-      title: formData.title,
+      name: slug || formData.name,
       currency: formData.currency,
-      theme: formData.theme,
-      subtitle: formData.subtitle,
+      business_type: formData.business_type,
+      heading: formData.heading,
       created_by: userId,
-      logo: "",
-      legal: {},
-      partners: [],
-      configuration: {},
-      contact: [],
-      services: [],
-      source: source,
+      source,
+      appearance: {
+        ...restDefault.appearance,
+        theme: {
+          type: "standard",
+          name: formData.theme,
+        },
+      },
     };
 
     const { error } = await database.from("catalogues").insert([catalogueData]);
@@ -80,7 +90,7 @@ export const extractJSONArrayFromResponse = (response: string) => {
 
 export const extractJSONFromResponse = <T = any>(
   response: string,
-  type: "array" | "object" = "object"
+  type: "array" | "object" = "object",
 ): T => {
   const cleanedText = response
     .replace(/```json/g, "")
@@ -109,7 +119,7 @@ export const extractJSONFromResponse = <T = any>(
 
 export const safeExtractJSONFromResponse = <T = any>(
   response: string,
-  type: "array" | "object" = "object"
+  type: "array" | "object" = "object",
 ): T => {
   try {
     return extractJSONFromResponse<T>(response, type);
