@@ -1,4 +1,4 @@
-import { baseCategorySchema, layoutData } from ".";
+import { baseCategorySchema, layoutData } from "./general";
 
 export function generatePromptForCategoryDetection(
   ocrText: string,
@@ -15,7 +15,7 @@ ${ocrText}
 ---
 
 ### STRICT OUTPUT REQUIREMENTS
-1. Return ONLY a valid JSON object — **no commentary, no markdown, no explanations**.
+1. Return ONLY a valid JSON object — no commentary, no markdown, no explanations.
 2. The structure MUST be:
    {
      "chunks": [
@@ -24,11 +24,11 @@ ${ocrText}
        ...
      ]
    }
-3. The JSON must start with '{' and end with '}' — **no \`\`\`json** or other formatting.
+3. The JSON must start with '{' and end with '}' — no \`\`\`json or other formatting.
 4. Each chunk must include:
    - The category name (e.g., "BREAKFAST", "DRINKS")
    - All items, descriptions, and prices belonging to that category
-5. Ensure **unique category names**; merge duplicates when appropriate.
+5. Ensure unique category names; merge duplicates when appropriate.
 6. If the text has no clear categories, group similar items logically.
 7. Keep only text in ${language} — remove other languages if present.
 8. Remove any unrelated content (address, website, company info, etc.).
@@ -53,21 +53,20 @@ export function generatePromptForCategoryProcessing(
   shouldGenerateImages: boolean
 ): string {
   return `
-    Role: You are an expert in creating service category configurations.
+    Role: You are an expert in creating item categories for catalogues, menus, price lists.
     Based on the provided category text chunk, generate a single category object in JSON format.
     
     Category Text Chunk: ${categoryChunk}
     
     Schema for single category: ${JSON.stringify(baseCategorySchema)}
     
-    General information about service catalogue: ${JSON.stringify(formData)}
+    General information about catalogue: ${JSON.stringify(formData)}
 
-    ${
-      shouldGenerateImages == true
-        ? `Layouts keys and description of each variant: ${JSON.stringify(
-            layoutData
-          )}. According to it use different variants for different purpose. For drinks for example use without image.`
-        : "For category layout always use value 'variant_3'"
+    ${shouldGenerateImages == true
+      ? `Layouts keys and description of each variant: ${JSON.stringify(
+        layoutData
+      )}. According to it use different variants for different purpose. For drinks for example use without image.`
+      : "For category layout always use value 'variant_3'"
     }
     
     IMPORTANT REQUIREMENTS:
@@ -78,10 +77,9 @@ export function generatePromptForCategoryProcessing(
     4. Item name must be unique. If you have items with same name then return only one of them, not both.
     5. Set order to ${order}
     6. Create items array with all items found in this category chunk
-    7. If prices are missing, estimate reasonable prices based on currency: ${
-      formData.currency
+    7. If prices are missing, estimate reasonable prices based on currency: ${formData.currency
     }
-    8. Service should be created in the language and alphabet of the text
+    8. Item and category should be created in the language and alphabet of the text
     9. Ensure all strings are properly escaped and contain no special characters like /,-,",' that could break JSON
     10. Item names should be full descriptive names
     11. Provide meaningful descriptions for items when possible
@@ -104,33 +102,25 @@ export function generatePromptForCategoryProcessing(
   `;
 }
 export function generateOrderPrompt(items, formData: any): string {
-  return `You are an expert in organizing service or menu categories to optimize the customer browsing experience.
+  return `You are an expert in organizing catalogue/price list/menu categories to optimize the customer browsing experience.
 
-**Task**: Reorder and, if necessary, rename the categories in the provided items array to create a logical, intuitive flow for customers browsing a ${
-    formData.title || "catalogue"
-  }.
+Task: Reorder and, if necessary, rename the categories in the provided items array to create a logical, intuitive flow for customers browsing a ${formData.title || "catalogue"
+    }.
 
-**Input Categories**: ${JSON.stringify(items.map((category) => category.name))}
+Input Categories: ${JSON.stringify(items.map((category) => category.name))}
 
-**Ordering Guidelines**:
-1. **Logical Progression**: Arrange categories in a natural sequence (e.g., appetizers → mains → desserts, or morning → afternoon → evening).
-2. **Customer Journey**: Prioritize how customers typically browse and make selections.
-3. **Closing Categories**: Place beverages, desserts, add-ons, or supplementary items at the end.
+Ordering Guidelines:
+1. Logical Progression: Arrange categories in a natural sequence (e.g., appetizers → mains → desserts, or morning → afternoon → evening).
+2. Customer Journey: Prioritize how customers typically browse and make selections.
+3. Closing Categories: Place beverages, desserts, add-ons, or supplementary items at the end.
 
-**Context-Specific Rules**:
-- **Restaurants**: Appetizers → Soups/Salads → Main Courses → Desserts → Beverages
-- **Cafés**: Coffee/Tea → Breakfast → Lunch → Snacks → Desserts
-- **Beauty/Wellness**: Basic Services → Premium Treatments → Packages → Add-ons
-- **General Catalogue**: Core Items → Specialized Items → Extras/Add-ons
-
-**Requirements**:
+Requirements:
 1. Return a valid JSON array containing only category names (strings).
 2. Match the input array length (${items.length} categories).
-3. Preserve exact spelling of input category names unless renaming is needed.
+3. CRITICAL: Do NOT rename categories. You must use the EXACT names provided in the input list.
 4. Ensure category names:
-   - Are in ${
-     formData.language || "English"
-   } with consistent capitalization (e.g., First letter capitalized, rest lowercase).
+   - Are in ${formData.language || "English"
+    } with consistent capitalization (e.g., First letter capitalized, rest lowercase).
    - Are clear, unique on catalogue level, and self-explanatory.
    - Contain no special characters (e.g., /, -, ", ').
    - Are semantically and grammatically appropriate for the catalogue context.
@@ -139,6 +129,6 @@ export function generateOrderPrompt(items, formData: any): string {
 	- Contain no special characters (e.g., /, -, ", ')
 	- Are semantically and grammatically correct
 	- Are unique within the category
-**Output Format Example**:
+Output Format Example:
 ["Breakfast", "Lunch", "Dinner", "Desserts", "Beverages"]`;
 }

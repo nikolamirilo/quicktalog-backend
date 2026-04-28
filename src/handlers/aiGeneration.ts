@@ -2,16 +2,16 @@ import { Bool, OpenAPIRoute } from "chanfana";
 import { AIGenerationRequestSchema, type AppContext } from "../types";
 import { chatCompletion } from "../lib/deepseek";
 import z from "zod";
-import { supabaseClient } from "../lib/supabase";
+import { supabaseAdmin } from "../lib/supabase";
 import { generatePromptForAI } from "../utils/ai";
-import { CatalogueCategory, generateUniqueSlug } from "@quicktalog/common";
+import { generateUniqueSlug, CategoryBlock, defaultCatalogueData } from "@quicktalog/common";
 import {
   createInitialCatalogue,
   revalidateData,
   safeExtractJSONFromResponse,
 } from "../helpers";
 import { generateOrderPrompt } from "../utils/ocr";
-import { GenerateImages } from "./generateImages";
+import { processImageGeneration } from "../helpers/imageGeneration";
 
 export class AIGeneration extends OpenAPIRoute {
   schema = {
@@ -53,9 +53,9 @@ export class AIGeneration extends OpenAPIRoute {
       return c.json({ error: "Service name is required" }, 400);
     }
 
-    const database = supabaseClient(
+    const database = supabaseAdmin(
       c.env.SUPABASE_URL,
-      c.env.SUPABASE_ANON_KEY
+      c.env.SUPABASE_SERVICE_ROLE_KEY,
     );
     const slug = generateUniqueSlug(formData.name) || formData.name;
 
@@ -65,7 +65,7 @@ export class AIGeneration extends OpenAPIRoute {
       slug,
       formData,
       "ai_prompt",
-      userId
+      userId,
     );
 
     if (!catalogueCreated) {
@@ -79,15 +79,27 @@ export class AIGeneration extends OpenAPIRoute {
       const generationPrompt = generatePromptForAI(
         prompt,
         formData,
-        shouldGenerateImages
+        shouldGenerateImages,
+      );
+      console.log(
+        "⏳ Sending generation request to DeepSeek (Timeout: 120s)...",
       );
       const aiResponse = await chatCompletion(
         generationPrompt,
-        c.env.DEEPSEEK_API_KEY
+        c.env.DEEPSEEK_API_KEY,
+        120000,
       );
+      console.log("✅ DeepSeek generation response received");
 
       console.log(aiResponse);
       const generatedData = safeExtractJSONFromResponse(aiResponse, "object");
+      // Normalise: AI may return the array under 'services' or 'content'
+      if (!generatedData.services && generatedData.content) {
+        generatedData.services = generatedData.content;
+      }
+      if (!Array.isArray(generatedData.services)) {
+        throw new Error("AI response did not contain a valid services/content array");
+      }
       console.log(`📦 Generated ${generatedData.services.length} categories`);
 
       // Order categories with AI (with fallback to original order)
@@ -97,15 +109,18 @@ export class AIGeneration extends OpenAPIRoute {
 
       const orderingPrompt = generateOrderPrompt(
         generatedData.services,
-        formData
+        formData,
       );
+      console.log("⏳ Sending ordering request to DeepSeek (Timeout: 60s)...");
       const orderingResponse = await chatCompletion(
         orderingPrompt,
-        c.env.DEEPSEEK_API_KEY
+        c.env.DEEPSEEK_API_KEY,
+        60000,
       );
+      console.log("✅ Ordering response received");
       const extractedOrderingResponse = safeExtractJSONFromResponse<string[]>(
         orderingResponse,
-        "array"
+        "array",
       );
 
       if (
@@ -123,31 +138,35 @@ export class AIGeneration extends OpenAPIRoute {
         });
       } else {
         console.log(
-          `⚠️ Ordering invalid (expected: ${
-            generatedData.services.length
-          }, received: ${
-            extractedOrderingResponse?.length || 0
-          }), using original order`
+          `⚠️ Ordering invalid (expected: ${generatedData.services.length
+          }, received: ${extractedOrderingResponse?.length || 0
+          }), using original order`,
         );
         orderingFailed = true;
       }
 
+      // Map generated basic format into ContentBlock list
+      const mappedContentBlocks: CategoryBlock[] = orderedItems.map((category: any, index: number) => ({
+        id: crypto.randomUUID(),
+        type: "category",
+        name: category.name,
+        order: category.order !== undefined ? category.order : index,
+        isExpanded: true,
+        layout: "variant_3",
+        items: Array.isArray(category.items) ? category.items.map((item: any, itemIndex: number) => ({
+          id: crypto.randomUUID(),
+          order: itemIndex,
+          name: item.name,
+          description: item.description || "",
+          image: item.image || "",
+          price: item.price || 0,
+        })) : []
+      }));
+
       // Save catalogue to database
       const catalogueData = {
-        name: slug,
         status: "active",
-        title: formData.title,
-        currency: formData.currency,
-        theme: formData.theme,
-        subtitle: formData.subtitle,
-        created_by: userId,
-        logo: "",
-        legal: {},
-        partners: [],
-        configuration: {},
-        contact: [],
-        services: orderedItems,
-        source: "ai_prompt",
+        content: mappedContentBlocks
       };
 
       const { error: saveError } = await database
@@ -166,31 +185,31 @@ export class AIGeneration extends OpenAPIRoute {
       if (shouldGenerateImages) {
         c.executionCtx.waitUntil(
           (async () => {
-            const generateImagesHandler = new GenerateImages();
-            await generateImagesHandler.handle(c, orderedItems, slug);
-          })()
+            await processImageGeneration(c.env, mappedContentBlocks, slug);
+          })(),
         );
         console.log("🎨 Image generation started in background");
       }
 
-      // Record usage
+      // Record usage (uses service-role key to bypass RLS on the prompts table)
       console.log("💾 Recording usage...");
-      const { error: usageError } = await database
+      const adminDb = supabaseAdmin(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+      const { error: usageError } = await adminDb
         .from("prompts")
         .insert({ user_id: userId, catalogue: slug });
 
       if (usageError) {
         console.error("⚠️ Failed to record usage:", usageError);
       }
-
       console.log("🎉 Catalogue generation completed successfully");
+      await revalidateData(c.env.APP_URL);
       return c.json({ success: true, slug }, 200);
     } catch (error) {
       console.error("❌ Error generating catalogue:", error);
 
       await database
         .from("catalogues")
-        .update({ services: [], status: "error" })
+        .update({ content: [], status: "error" })
         .eq("name", slug);
 
       return c.json(
@@ -198,10 +217,8 @@ export class AIGeneration extends OpenAPIRoute {
           message: "Error occurred while generating catalogue using AI",
           error,
         },
-        500
+        500,
       );
-    } finally {
-      await revalidateData(c.env.APP_URL);
     }
   }
 }

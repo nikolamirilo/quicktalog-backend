@@ -1,6 +1,6 @@
 import { OpenAPIRoute } from "chanfana";
-import { Env, type AppContext } from "../types";
-import { supabaseClient } from "../lib/supabase";
+import { Env } from "../types";
+import { supabaseAdmin } from "../lib/supabase";
 import { generateAnalyticsQuery } from "../utils/analytics";
 
 export class AnalyticsProcessingJob extends OpenAPIRoute {
@@ -25,7 +25,7 @@ export class AnalyticsProcessingJob extends OpenAPIRoute {
     }
 
     const startTime = Date.now();
-    const supabase = supabaseClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
+    const supabase = supabaseAdmin(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
     try {
       if (
@@ -36,14 +36,14 @@ export class AnalyticsProcessingJob extends OpenAPIRoute {
         console.error("Missing required environment variables");
         return console.error(
           { error: "Missing PostHog configuration" },
-          { status: 500 }
+          { status: 500 },
         );
       }
 
       const analyticsQuery = generateAnalyticsQuery(
         startDateIsosString,
         endDate.toISOString(),
-        env.ENVIRONMENT
+        env.ENVIRONMENT,
       );
 
       const res = await fetch(
@@ -61,14 +61,14 @@ export class AnalyticsProcessingJob extends OpenAPIRoute {
             },
           }),
           cache: "no-store",
-        }
+        },
       );
 
       if (!res.ok) {
         console.error(`PostHog API error: ${res.status} ${res.statusText}`);
         return console.error(
           { error: "PostHog API request failed", status: res.status },
-          { status: 500 }
+          { status: 500 },
         );
       }
 
@@ -78,7 +78,7 @@ export class AnalyticsProcessingJob extends OpenAPIRoute {
         console.error("Invalid PostHog response structure");
         return console.log(
           { error: "Invalid PostHog response" },
-          { status: 500 }
+          { status: 500 },
         );
       }
 
@@ -93,7 +93,7 @@ export class AnalyticsProcessingJob extends OpenAPIRoute {
           };
         })
         .filter(
-          (item) => !(item.pageview_count === 0 && item.unique_visitors === 0)
+          (item) => !(item.pageview_count === 0 && item.unique_visitors === 0),
         );
 
       const catalogueNames = [
@@ -103,7 +103,7 @@ export class AnalyticsProcessingJob extends OpenAPIRoute {
               const match = item.current_url.match(/\/catalogues\/([^/]+)/);
               return match ? match[1] : null;
             })
-            .filter(Boolean)
+            .filter(Boolean),
         ),
       ];
 
@@ -124,7 +124,7 @@ export class AnalyticsProcessingJob extends OpenAPIRoute {
           const restaurantName = match ? match[1].trim().toLowerCase() : null;
 
           const user_id = restaurantName
-            ? nameToUserId[restaurantName] ?? null
+            ? (nameToUserId[restaurantName] ?? null)
             : null;
 
           return { ...item, user_id };
@@ -172,7 +172,7 @@ export class AnalyticsProcessingJob extends OpenAPIRoute {
       });
       return console.error(
         { error: "Error occurred while cing analytics" },
-        { status: 500 }
+        { status: 500 },
       );
     }
   }

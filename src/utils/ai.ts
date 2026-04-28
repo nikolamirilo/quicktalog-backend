@@ -1,4 +1,4 @@
-import { baseSchema, layoutData, rules } from ".";
+import { baseSchema, layoutData, rules } from "./general";
 import { GenerationRequest } from "../types";
 
 export function generatePromptForAI(
@@ -14,15 +14,14 @@ export function generatePromptForAI(
     Prompt: ${inputText}
     
     Schema: ${JSON.stringify(
-      baseSchema
-    )} - response should be in this format without additional texts (just array of items). CATEGORY NAME MUST BE UNIQUE!
+    baseSchema
+  )} - response should be in this format without additional texts (just array of items). CATEGORY NAME MUST BE UNIQUE!
 
-    ${
-      shouldGenerateImages == true
-        ? `Layouts keys and description of each variant: ${JSON.stringify(
-            layoutData
-          )}. According to it use different variants for different purpose. For drinks for example use without image.`
-        : "For category layout always use value 'variant_3'"
+    ${shouldGenerateImages == true
+      ? `Layouts keys and description of each variant: ${JSON.stringify(
+        layoutData
+      )}. According to it use different variants for different purpose. For drinks for example use without image.`
+      : "For category layout always use value 'variant_3'"
     }
 
     General information about service catalogue: ${JSON.stringify(formData)}
@@ -32,8 +31,7 @@ export function generatePromptForAI(
     OTHER IMPORTANT RULES:
     1. Return ONLY the JSON object, no additional text, explanations, or formatting
     2. Start your response directly with { and end with }
-    3. Catalogue/Price List should be created in the selected language: ${
-      formData.language
+    3. Catalogue/Price List should be created in the selected language: ${formData.language
     }
     4. The services field should be an ARRAY of categories, NOT an object
     5. Add at least 3 categories with at least 5 items each

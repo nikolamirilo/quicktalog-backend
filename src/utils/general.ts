@@ -1,23 +1,15 @@
-import { CatalogueCategory, CategoryItem, layouts } from "@quicktalog/common";
-import { Env, GenerationRequest } from "../types";
-import {
-  extractJSONArrayFromResponse,
-  extractJSONObjectFromResponse,
-} from "../helpers";
-import {
-  DEEPSEEK_BASE_URL,
-  FALLBACK_IMAGE_URL,
-  UNSPLASH_BASE_URL,
-} from "../constants";
+import { CategoryBlock, layouts } from "@quicktalog/common";
+import { Env } from "../types";
+import { extractJSONArrayFromResponse } from "../helpers";
+import { DEEPSEEK_BASE_URL, UNSPLASH_BASE_URL } from "../constants";
 
 export const baseCategorySchema = {
-  name: "Name of category",
-  layout: "variant_1 | variant_2 | variant_3 | variant_4",
-  order: 1,
+  name: "Name of category. Always use Regular Case format. Example: Salads",
   items: [
     {
-      name: "Item Name",
-      description: "Description of Item",
+      name: "Item Name. Always use Regular Case format. Example: Grilled Chicken Salad",
+      description:
+        "Description of Item. Always use Regular Case format. If text does not make sense, rewrite it.",
       price: 12,
       image: "image url",
     },
@@ -32,28 +24,28 @@ export const rules = `
 `;
 
 export const baseSchema = {
-  services: [baseCategorySchema],
+  content: [baseCategorySchema],
 };
 
 async function searchUnsplash(
   query: string,
-  access_key: string
+  access_key: string,
 ): Promise<string | null> {
   try {
     const response = await fetch(
       `${UNSPLASH_BASE_URL}/search/photos?page=1&per_page=1&query=${encodeURIComponent(
-        query
+        query,
       )}`,
       {
         headers: {
           Authorization: `Client-ID ${access_key}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
       console.warn(
-        `Unsplash API returned ${response.status} for query: "${query}"`
+        `Unsplash API returned ${response.status} for query: "${query}"`,
       );
       return null;
     }
@@ -74,9 +66,9 @@ async function searchUnsplash(
 }
 
 async function searchWithAI(
-  categoryItems: CatalogueCategory["items"],
-  api_key: string
-): Promise<CatalogueCategory["items"] | null> {
+  categoryItems: CategoryBlock["items"],
+  api_key: string,
+): Promise<CategoryBlock["items"] | null> {
   const requestBody = {
     model: "deepseek-chat",
     messages: [
@@ -84,7 +76,7 @@ async function searchWithAI(
         role: "system",
         content: `You are an expert image researcher. Find high-quality, free images from Unsplash, Pexels, or Pixabay. " +
           'Return ONLY a JSON object with same data as here ${JSON.stringify(
-            categoryItems
+            categoryItems,
           )} just with updated image value for each item.' +
           "The URL of images must be a direct link to the image file. Verify the image is relevant and accessible. " +
           "If searching in a non-English language, translate to English first. Take small size of image. IMPORTANT: If item is named something specific like 'Momofuku Tribute Ribs' search only for ribs. If you are not sure what exactly something is search for name of category, in this case 'meat' or 'stake'.`,
@@ -92,7 +84,7 @@ async function searchWithAI(
       {
         role: "user",
         content: `Find a good quality images for category items: "${JSON.stringify(
-          categoryItems
+          categoryItems,
         )}". Return only the JSON object, no explanations. It should contain same data as before with only UPDATED image property for each item, nothing else should be updated. You should return in same structure as input category just with updated images for each item in items. At the end of each image URL if they are from pexels add '?auto=compress&cs=tinysrgb&h=350. DO NOT UPDATE ANYTHING ASIDE FROM IMAGES!!!'`,
       },
     ],
@@ -122,7 +114,7 @@ async function searchWithAI(
       return null;
     }
 
-    const result: CatalogueCategory["items"] =
+    const result: CategoryBlock["items"] =
       extractJSONArrayFromResponse(content);
 
     if (result) {
@@ -143,16 +135,16 @@ export const layoutData = layouts.map((l) => ({
 }));
 
 export async function generateImage(
-  category: CatalogueCategory,
-  env: Env
-): Promise<CatalogueCategory> {
+  category: CategoryBlock,
+  env: Env,
+): Promise<CategoryBlock> {
   if (category.items.length === 0) {
     console.warn("Empty query provided, using fallback image");
     return category;
   }
   const enrichedCategoryDeepseek = await searchWithAI(
     category.items,
-    env.DEEPSEEK_API_KEY
+    env.DEEPSEEK_API_KEY,
   );
   if (enrichedCategoryDeepseek) {
     return { ...category, items: enrichedCategoryDeepseek };

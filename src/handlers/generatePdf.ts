@@ -1,6 +1,5 @@
-import { Bool, OpenAPIRoute } from "chanfana";
+import { OpenAPIRoute } from "chanfana";
 import { type AppContext } from "../types";
-import z from "zod";
 import { revalidateData } from "../helpers";
 
 export class GeneratePdf extends OpenAPIRoute {
@@ -28,7 +27,7 @@ export class GeneratePdf extends OpenAPIRoute {
           success: false,
           error: error,
         },
-        500
+        500,
       );
     } finally {
       await revalidateData(c.env.APP_URL);
