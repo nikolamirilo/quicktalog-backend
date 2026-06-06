@@ -14,11 +14,11 @@
     "chanfana": "^2.6.3",
     "hono": "^4.6.20",
     "openai": "^6.6.0",
+    "wrangler": "^4.98.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "22.13.0",
-    "@types/service-worker-mock": "^2.0.4",
-    "wrangler": "^4.45.1"
+    "@types/service-worker-mock": "^2.0.4"
   }
 }
