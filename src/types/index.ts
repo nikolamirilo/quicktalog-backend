@@ -46,6 +46,7 @@ export type Env = {
   POSTHOG_HOST: string;
   POSTHOG_API_KEY: string;
   POSTHOG_PROJECT_ID: string;
+  UPLOADTHING_TOKEN: string;
   MYBROWSER: Fetcher;
   database: D1Database;
   ENVIRONMENT: "test" | "prod";
