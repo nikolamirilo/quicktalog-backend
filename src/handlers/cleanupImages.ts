@@ -7,9 +7,16 @@ import {
   extractUploadthingKeysFromValue,
   listUploadthingFiles,
 } from "../utils/uploadthing";
+import { PROTECTED_UPLOADTHING_URLS } from "../constants";
 
 const CATALOGUE_IMAGE_FIELDS =
   "logo, content, appearance, header, footer, partners, metadata";
+
+const PROTECTED_KEYS: ReadonlySet<string> = new Set(
+  PROTECTED_UPLOADTHING_URLS.flatMap((url) =>
+    extractUploadthingKeysFromValue(url),
+  ),
+);
 
 export class CleanupImages extends OpenAPIRoute {
   schema = {
@@ -64,9 +71,11 @@ export class CleanupImages extends OpenAPIRoute {
       c.env.SUPABASE_SERVICE_ROLE_KEY,
     );
 
-    // 1. Collect every UploadThing key referenced by any catalogue.
+    // 1. Collect every UploadThing key referenced by any catalogue, seeded
+    //    with always-protected keys (e.g. the frontend's fallback image)
+    //    that may never appear in any DB row.
     console.log("🔍 Scanning catalogues for referenced UploadThing keys...");
-    const usedKeys = new Set<string>();
+    const usedKeys = new Set<string>(PROTECTED_KEYS);
     const pageSize = 1000;
     let from = 0;
     while (true) {
