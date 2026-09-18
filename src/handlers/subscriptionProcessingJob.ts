@@ -45,7 +45,7 @@ export class SubscriptionProcessingJob extends OpenAPIRoute {
 
   async handle(env: Env) {
     try {
-      const supabase = supabaseAdmin(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+      const supabase = supabaseAdmin(env.SUPABASE_URL, env.SUPABASE_SECRET_KEY);
 
       // 1. Get all users that are not on the free tier
       const { data: users, error: userError } = await supabase

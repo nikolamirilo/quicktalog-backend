@@ -25,7 +25,7 @@ export class AnalyticsProcessingJob extends OpenAPIRoute {
     }
 
     const startTime = Date.now();
-    const supabase = supabaseAdmin(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+    const supabase = supabaseAdmin(env.SUPABASE_URL, env.SUPABASE_SECRET_KEY);
 
     try {
       if (

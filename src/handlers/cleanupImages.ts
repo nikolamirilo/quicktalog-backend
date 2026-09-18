@@ -95,7 +95,7 @@ export class CleanupImages extends OpenAPIRoute {
 
     const database = supabaseAdmin(
       c.env.SUPABASE_URL,
-      c.env.SUPABASE_SERVICE_ROLE_KEY,
+      c.env.SUPABASE_SECRET_KEY,
     );
 
     // 1. Collect every UploadThing key referenced by any catalogue, seeded
