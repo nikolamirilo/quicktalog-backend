@@ -12,6 +12,12 @@ export type Env = {
   MYBROWSER: Fetcher;
   database: D1Database;
   ENVIRONMENT: "test" | "prod";
+  /** Shared with the app's `/api/revalidate` route. */
+  REVALIDATE_SECRET: string;
+  /** Bearer token required on every HTTP route of this worker. */
+  WORKER_ADMIN_TOKEN: string;
+  /** "true" skips the scheduled jobs (kill switch, e.g. during the cutover). */
+  JOBS_PAUSED?: string;
 };
 
 export type AppContext = Context<{ Bindings: Env }>;

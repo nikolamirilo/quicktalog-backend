@@ -21,6 +21,10 @@ const PROTECTED_KEYS: ReadonlySet<string> = new Set(
 
 const DEAD_KEY_SAMPLE_SIZE = 20;
 
+// Refuse to delete more than this share of all UploadThing files in one run:
+// a large share almost always means the reference scan read the wrong data.
+const MAX_DELETE_RATIO = 0.2;
+
 const fileSchema = z.object({
   key: z.string(),
   name: z.string().nullable(),
@@ -99,6 +103,7 @@ export class CleanupImages extends OpenAPIRoute {
     //    that may never appear in any DB row.
     console.log("🔍 Scanning catalogues for referenced UploadThing keys...");
     const referencedKeys = new Set<string>(PROTECTED_KEYS);
+    const catalogueKeys = new Set<string>();
     const pageSize = 1000;
     let from = 0;
     while (true) {
@@ -117,6 +122,7 @@ export class CleanupImages extends OpenAPIRoute {
       for (const row of rows) {
         for (const key of extractUploadthingKeysFromValue(row)) {
           referencedKeys.add(key);
+          catalogueKeys.add(key);
         }
       }
       if (rows.length < pageSize) break;
@@ -165,14 +171,14 @@ export class CleanupImages extends OpenAPIRoute {
       if (!allFileKeys.has(key)) deadKeys.push(key);
     }
 
-    // Size totals — helps decide whether deletion is worth running.
+    // Size totals - helps decide whether deletion is worth running.
     const totalSizeBytes = allFiles.reduce((sum, f) => sum + (f.size || 0), 0);
     const unusedSizeBytes = unusedFiles.reduce(
       (sum, f) => sum + (f.size || 0),
       0,
     );
 
-    // Duplicate detection — files with the same name and size are almost
+    // Duplicate detection - files with the same name and size are almost
     // certainly the same image uploaded multiple times. Only emit groups
     // with more than one member.
     const byNameSize = new Map<string, UploadthingFile[]>();
@@ -204,6 +210,16 @@ export class CleanupImages extends OpenAPIRoute {
     // 4. Optionally delete the orphaned UT files.
     let deleted = false;
     if (shouldDelete && unusedFiles.length > 0) {
+      const refusal =
+        catalogueKeys.size === 0
+          ? "No catalogue references found; refusing to delete"
+          : unusedFiles.length > allFiles.length * MAX_DELETE_RATIO
+            ? `Refusing to delete ${unusedFiles.length} of ${allFiles.length} files (limit ${MAX_DELETE_RATIO * 100}%)`
+            : null;
+      if (refusal) {
+        console.error(`❌ ${refusal}`);
+        return c.json({ error: refusal }, 409);
+      }
       console.log(`🗑️ Deleting ${unusedFiles.length} unused files...`);
       try {
         await deleteUploadthingFiles(
