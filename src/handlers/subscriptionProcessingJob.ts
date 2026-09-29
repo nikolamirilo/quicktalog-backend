@@ -10,10 +10,14 @@ const REVALIDATE_BATCH_SIZE = 500;
 
 type SupabaseAdmin = ReturnType<typeof supabaseAdmin>;
 
+/** The current UTC month as `YYYY-MM-DD` days, end exclusive. */
 function currentMonthRange(now = new Date()) {
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-  return { start: start.toISOString(), end: end.toISOString() };
+  return {
+    start: start.toISOString().slice(0, 10),
+    end: end.toISOString().slice(0, 10),
+  };
 }
 
 /** Sums this month's pageviews for one user, paging through analytics rows. */
@@ -24,14 +28,14 @@ async function monthlyPageviews(supabase: SupabaseAdmin, userId: string) {
   while (true) {
     const { data: rows, error } = await supabase
       .from("analytics")
-      .select("pageview_count")
+      .select("pageviews")
       .eq("user_id", userId)
-      .gte("date", start)
-      .lt("date", end)
+      .gte("day", start)
+      .lt("day", end)
       .order("id")
       .range(from, from + PAGE_SIZE - 1);
     if (error) throw error;
-    for (const row of rows ?? []) total += row.pageview_count ?? 0;
+    for (const row of rows ?? []) total += row.pageviews ?? 0;
     if (!rows || rows.length < PAGE_SIZE) return total;
     from += PAGE_SIZE;
   }
@@ -67,16 +71,16 @@ export class SubscriptionProcessingJob extends OpenAPIRoute {
           if (!matchedTier)
             throw new Error(`Tier not found for user ${user.id}`);
 
-          const pageviewCount = await monthlyPageviews(supabase, user.id);
+          const pageviews = await monthlyPageviews(supabase, user.id);
           const { traffic_limit } = matchedTier.features;
-          if (pageviewCount < traffic_limit) {
+          if (pageviews < traffic_limit) {
             return { userId: user.id, action: "no_update_needed", names: [] };
           }
 
           const { data: updated, error: updateError } = await supabase
             .from("catalogues")
             .update({ status: "inactive" })
-            .eq("created_by", user.id)
+            .eq("user_id", user.id)
             .eq("status", "active")
             .select("name");
 

@@ -82,62 +82,76 @@ export class AnalyticsProcessingJob extends OpenAPIRoute {
         );
       }
 
-      const analyticsData = eventsData.results
-        .map(([date, current_url, pageview_count, unique_visitors]) => {
-          const clean_url = current_url?.split("?")[0] || current_url;
-          return {
-            date,
-            current_url: clean_url,
-            pageview_count,
-            unique_visitors,
-          };
-        })
-        .filter(
-          (item) => !(item.pageview_count === 0 && item.unique_visitors === 0),
-        );
+      const slugOf = (url: string) =>
+        url.match(/\/catalogues\/([^/?#]+)/)?.[1]?.trim().toLowerCase() ?? null;
 
-      const catalogueNames = [
-        ...new Set(
-          analyticsData
-            .map((item) => {
-              const match = item.current_url.match(/\/catalogues\/([^/]+)/);
-              return match ? match[1] : null;
-            })
-            .filter(Boolean),
-        ),
-      ];
+      const analyticsData = eventsData.results
+        .map(([date, current_url, pageview_count, unique_visitors]) => ({
+          day: String(date).slice(0, 10),
+          slug: current_url ? slugOf(current_url) : null,
+          pageviews: Number(pageview_count) || 0,
+          unique_visitors: Number(unique_visitors) || 0,
+        }))
+        .filter((item) => item.pageviews > 0 || item.unique_visitors > 0);
+
+      const slugs = [
+        ...new Set(analyticsData.map((item) => item.slug).filter(Boolean)),
+      ] as string[];
 
       const { data: catalogues, error: catalogueError } = await supabase
         .from("catalogues")
-        .select("name, created_by")
-        .in("name", catalogueNames);
+        .select("id, name, user_id")
+        .in("name", slugs);
+      if (catalogueError) throw catalogueError;
 
+      const bySlug = new Map(
+        (catalogues ?? []).map((row) => [row.name as string, row]),
+      );
+
+      // One row per catalogue per day: URL variants of a page are summed, so
+      // visitors are an upper bound, as in the migration that merged them.
       let unmatchedUrls = 0;
-      const nameToUserId: Record<string, string> = {};
-      (catalogues || []).forEach((r) => {
-        nameToUserId[r.name.trim().toLowerCase()] = r.created_by;
-      });
-
-      const analyticsDataWithUserId = analyticsData
-        .map((item) => {
-          const match = item.current_url.match(/\/catalogues\/([^/]+)/);
-          const restaurantName = match ? match[1].trim().toLowerCase() : null;
-
-          const user_id = restaurantName
-            ? (nameToUserId[restaurantName] ?? null)
-            : null;
-
-          return { ...item, user_id };
-        })
-        .filter((item) => item.user_id !== null);
+      const rows = new Map<
+        string,
+        {
+          day: string;
+          catalogue_id: string;
+          user_id: string;
+          pageviews: number;
+          unique_visitors: number;
+        }
+      >();
+      for (const item of analyticsData) {
+        const catalogue = item.slug ? bySlug.get(item.slug) : undefined;
+        if (!catalogue) {
+          unmatchedUrls++;
+          continue;
+        }
+        const key = `${catalogue.id}|${item.day}`;
+        const row = rows.get(key);
+        if (row) {
+          row.pageviews += item.pageviews;
+          row.unique_visitors += item.unique_visitors;
+        } else {
+          rows.set(key, {
+            day: item.day,
+            catalogue_id: catalogue.id as string,
+            user_id: catalogue.user_id as string,
+            pageviews: item.pageviews,
+            unique_visitors: item.unique_visitors,
+          });
+        }
+      }
+      const analyticsRows = [...rows.values()];
 
       const { data: insertedData, error: insertError } = await supabase
         .from("analytics")
-        .upsert(analyticsDataWithUserId, {
-          onConflict: "date,current_url",
+        .upsert(analyticsRows, {
+          onConflict: "catalogue_id,day",
           ignoreDuplicates: true,
         })
         .select();
+      if (insertError) throw insertError;
 
       const executionTime = Date.now() - startTime;
 
@@ -148,7 +162,7 @@ export class AnalyticsProcessingJob extends OpenAPIRoute {
           endDate: endDate.toISOString(),
         },
         summary: {
-          fetched: analyticsDataWithUserId.length,
+          fetched: analyticsRows.length,
           inserted: insertedData?.length || 0,
           unmatched_urls: unmatchedUrls,
         },
