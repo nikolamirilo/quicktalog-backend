@@ -1,146 +1,49 @@
-import { defaultCatalogueData, Source } from "@quicktalog/common";
-import { SupabaseClient } from "@supabase/supabase-js";
+import type { Env } from "../types";
 
-export async function revalidateData(app_url: string) {
-  await fetch(`${app_url}/api/revalidate`);
-}
-export async function createInitialCatalogue(
-  database: SupabaseClient,
-  slug: string,
-  formData: any,
-  source: Source,
-  userId: string,
+export type RevalidateRequest = {
+  names?: string[];
+  dashboard?: boolean;
+};
+
+/**
+ * Asks the app to revalidate cached pages. With no names the app revalidates
+ * the catalogue list; `dashboard` also revalidates the dashboard.
+ */
+export async function revalidateData(
+  env: Pick<Env, "APP_URL" | "REVALIDATE_SECRET">,
+  body: RevalidateRequest = {},
 ) {
-  try {
-    const {
-      createdBy,
-      createdAt,
-      updatedAt,
-      businessType,
-      ...restDefault
-    } = defaultCatalogueData;
-
-    const catalogueData = {
-      ...restDefault,
-      status: "in preparation",
-      name: slug || formData.name,
-      currency: formData.currency,
-      business_type: formData.business_type,
-      heading: formData.heading,
-      created_by: userId,
-      source,
-      appearance: {
-        ...restDefault.appearance,
-        theme: {
-          type: "standard",
-          name: formData.theme,
-        },
-      },
-    };
-
-    const { error } = await database.from("catalogues").insert([catalogueData]);
-
-    if (error) throw error;
-    return true;
-  } catch (error) {
-    console.error("Error creating initial catalogue:", error);
-    return false;
+  if (!env.REVALIDATE_SECRET) {
+    throw new Error("REVALIDATE_SECRET not configured");
+  }
+  const res = await fetch(`${env.APP_URL}/api/revalidate`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-revalidate-secret": env.REVALIDATE_SECRET,
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new Error(`Revalidation failed with status ${res.status}`);
   }
 }
 
-export const extractJSONObjectFromResponse = (response: string) => {
-  const cleanedText = response
-    .replace(/```json/g, "")
-    .replace(/```/g, "")
-    .trim();
+/** Constant-time comparison of two secrets (hashes first so lengths match). */
+export async function secretMatches(
+  provided: string | null | undefined,
+  expected: string | null | undefined,
+) {
+  if (!provided || !expected) return false;
+  const encoder = new TextEncoder();
+  const [a, b] = await Promise.all([
+    crypto.subtle.digest("SHA-256", encoder.encode(provided)),
+    crypto.subtle.digest("SHA-256", encoder.encode(expected)),
+  ]);
+  return crypto.subtle.timingSafeEqual(a, b);
+}
 
-  const jsonStart = cleanedText.indexOf("{");
-  const jsonEnd = cleanedText.lastIndexOf("}");
-
-  if (jsonStart === -1 || jsonEnd === -1) {
-    throw new Error("No JSON object found in response");
-  }
-
-  const jsonString = cleanedText.substring(jsonStart, jsonEnd + 1);
-  return JSON.parse(jsonString);
-};
-
-export const extractJSONArrayFromResponse = (response: string) => {
-  const cleanedText = response
-    .replace(/```json/g, "")
-    .replace(/```/g, "")
-    .trim();
-
-  const jsonStart = cleanedText.indexOf("[");
-  const jsonEnd = cleanedText.lastIndexOf("]");
-
-  if (jsonStart === -1 || jsonEnd === -1) {
-    throw new Error("No JSON array found in response");
-  }
-
-  const jsonString = cleanedText.substring(jsonStart, jsonEnd + 1);
-  const parsedData = JSON.parse(jsonString);
-
-  if (!Array.isArray(parsedData)) {
-    throw new Error("Response is not an array");
-  }
-
-  return parsedData;
-};
-
-export const extractJSONFromResponse = <T = any>(
-  response: string,
-  type: "array" | "object" = "object",
-): T => {
-  const cleanedText = response
-    .replace(/```json/g, "")
-    .replace(/```/g, "")
-    .trim();
-
-  const startChar = type === "array" ? "[" : "{";
-  const endChar = type === "array" ? "]" : "}";
-
-  const jsonStart = cleanedText.indexOf(startChar);
-  const jsonEnd = cleanedText.lastIndexOf(endChar);
-
-  if (jsonStart === -1 || jsonEnd === -1) {
-    throw new Error(`No JSON ${type} found in response`);
-  }
-
-  const jsonString = cleanedText.substring(jsonStart, jsonEnd + 1);
-  const parsedData = JSON.parse(jsonString);
-
-  if (type === "array" && !Array.isArray(parsedData)) {
-    throw new Error("Response is not an array");
-  }
-
-  return parsedData as T;
-};
-
-export const safeExtractJSONFromResponse = <T = any>(
-  response: string,
-  type: "array" | "object" = "object",
-): T => {
-  try {
-    return extractJSONFromResponse<T>(response, type);
-  } catch (err) {
-    console.warn("⚠️ Initial parse failed, cleaning and retrying...");
-
-    // Extract possible JSON region
-    const match = response.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-    if (!match) throw new Error("No JSON structure found");
-
-    let cleaned = match[0]
-      .replace(/[\n\r\t]+/g, " ") // remove newlines/tabs
-      .replace(/“|”|„|‟/g, '"') // replace fancy quotes
-      .replace(/(?<!\\)"/g, '\\"') // escape unescaped quotes
-      .replace(/\\"([a-zA-Z0-9_]+)\\":/g, '"$1":'); // unescape field names
-
-    try {
-      return JSON.parse(cleaned);
-    } catch (finalErr) {
-      console.error("❌ Still failed after cleanup", finalErr);
-      throw finalErr;
-    }
-  }
-};
+/** True when the JOBS_PAUSED kill switch is on. */
+export function jobsPaused(env: Pick<Env, "JOBS_PAUSED">) {
+  return env.JOBS_PAUSED?.trim().toLowerCase() === "true";
+}

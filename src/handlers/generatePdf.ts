@@ -30,7 +30,9 @@ export class GeneratePdf extends OpenAPIRoute {
         500,
       );
     } finally {
-      await revalidateData(c.env.APP_URL);
+      await revalidateData(c.env, { dashboard: true }).catch((err) =>
+        console.error("Revalidation failed:", err),
+      );
     }
   }
 }
