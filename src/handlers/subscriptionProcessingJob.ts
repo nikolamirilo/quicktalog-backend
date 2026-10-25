@@ -1,10 +1,12 @@
 import { OpenAPIRoute } from "chanfana";
 import { Env } from "../types";
 import { supabaseAdmin } from "../lib/supabase";
-import { tiers } from "@quicktalog/common";
+import { catalogueFitsPlan, misfitMessage, tiers } from "@quicktalog/common";
 import { revalidateData } from "../helpers";
 
 const PAGE_SIZE = 1000;
+// Catalogue rows carry their whole content, so they are read in smaller pages.
+const CATALOGUE_PAGE_SIZE = 200;
 // Matches the max batch accepted by the app's /api/revalidate route.
 const REVALIDATE_BATCH_SIZE = 500;
 
@@ -41,10 +43,79 @@ async function monthlyPageviews(supabase: SupabaseAdmin, userId: string) {
   }
 }
 
+type Tier = (typeof tiers)[number];
+
+const tierFor = (planId: string | null): Tier =>
+  tiers.find((tier) => Object.values(tier.priceId).includes(planId ?? "")) ??
+  tiers[0];
+
+/**
+ * Switches off every active catalogue that no longer fits its owner's plan
+ * (too many items or sections, or a block type the plan lacks) - what a
+ * downgrade leaves behind. Covers every user, free plan included, since a
+ * downgrade lands there. The app refuses switching it back on until it fits.
+ */
+async function deactivateMisfits(supabase: SupabaseAdmin) {
+  const plans = new Map<string, string | null>();
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, plan_id")
+      .order("id")
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    for (const row of data ?? []) plans.set(row.id, row.plan_id);
+    if (!data || data.length < PAGE_SIZE) break;
+  }
+
+  const misfits: { id: string; userId: string; reason: string }[] = [];
+  for (let from = 0; ; from += CATALOGUE_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("catalogues")
+      .select("id, user_id, content")
+      .eq("status", "active")
+      .order("id")
+      .range(from, from + CATALOGUE_PAGE_SIZE - 1);
+    if (error) throw error;
+    for (const row of data ?? []) {
+      const tier = tierFor(plans.get(row.user_id) ?? null);
+      const fit = catalogueFitsPlan(row.content, tier.features);
+      if ("misfit" in fit) {
+        misfits.push({
+          id: row.id,
+          userId: row.user_id,
+          reason: misfitMessage(fit.misfit, tier.name),
+        });
+      }
+    }
+    if (!data || data.length < CATALOGUE_PAGE_SIZE) break;
+  }
+
+  const names: string[] = [];
+  for (let i = 0; i < misfits.length; i += REVALIDATE_BATCH_SIZE) {
+    const batch = misfits.slice(i, i + REVALIDATE_BATCH_SIZE);
+    const { data, error } = await supabase
+      .from("catalogues")
+      .update({ status: "inactive" })
+      .in(
+        "id",
+        batch.map((m) => m.id),
+      )
+      .eq("status", "active")
+      .select("name");
+    if (error) throw error;
+    names.push(...(data ?? []).map((row) => row.name as string));
+  }
+  for (const m of misfits) {
+    console.log({ action: "catalogue_over_plan", userId: m.userId, catalogueId: m.id, reason: m.reason });
+  }
+  return names;
+}
+
 export class SubscriptionProcessingJob extends OpenAPIRoute {
   schema = {
     tags: ["Subscription"],
-    summary: "Daily subscription usage check",
+    summary: "Subscription usage and plan-fit check",
   };
 
   async handle(env: Env) {
@@ -58,13 +129,11 @@ export class SubscriptionProcessingJob extends OpenAPIRoute {
         .neq("plan_id", tiers[0].priceId.month);
 
       if (userError) throw userError;
-      if (!users?.length)
-        return console.log({ success: true, result: "No users to check" });
 
       // 2. Compute each user's usage from the database and inactivate their
       //    catalogues when the plan's traffic limit is reached.
       const results = await Promise.allSettled(
-        users.map(async (user) => {
+        (users ?? []).map(async (user) => {
           const matchedTier = tiers.find((tier) =>
             Object.values(tier.priceId).includes(user.plan_id),
           );
@@ -90,11 +159,15 @@ export class SubscriptionProcessingJob extends OpenAPIRoute {
         }),
       );
 
-      // 3. Revalidate the catalogues that were just inactivated so their
+      // 3. Switch off catalogues that no longer fit their owner's plan.
+      const misfitNames = await deactivateMisfits(supabase);
+
+      // 4. Revalidate the catalogues that were just inactivated so their
       //    public pages stop being served from cache.
-      const inactivatedNames = results.flatMap((r) =>
-        r.status === "fulfilled" ? r.value.names : [],
-      );
+      const inactivatedNames = [
+        ...results.flatMap((r) => (r.status === "fulfilled" ? r.value.names : [])),
+        ...misfitNames,
+      ];
       for (let i = 0; i < inactivatedNames.length; i += REVALIDATE_BATCH_SIZE) {
         const names = inactivatedNames.slice(i, i + REVALIDATE_BATCH_SIZE);
         try {
@@ -104,7 +177,7 @@ export class SubscriptionProcessingJob extends OpenAPIRoute {
         }
       }
 
-      // 4. Collect and summarize results
+      // 5. Collect and summarize results
       const summary = results.map((r) =>
         r.status === "fulfilled"
           ? {
@@ -115,7 +188,11 @@ export class SubscriptionProcessingJob extends OpenAPIRoute {
           : { error: (r.reason as Error).message },
       );
 
-      return console.log({ success: true, result: summary });
+      return console.log({
+        success: true,
+        result: summary,
+        overPlanInactivated: misfitNames.length,
+      });
     } catch (err) {
       console.error("Error in DailySubscriptionCheck:", err);
       return console.log(

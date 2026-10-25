@@ -27,7 +27,10 @@ const openapi = fromHono(app, {
 openapi.get("/api/generate/pdf", GeneratePdf);
 openapi.get("/api/images/cleanup", CleanupImages);
 
-// --- test: http://127.0.0.1:8787/__scheduled?cron=*+*+*+*+*
+/** The first of `triggers.crons` in wrangler.jsonc; the other trigger runs the plan checks only. */
+const DAILY_CRON = "0 3 * * *";
+
+// --- test: http://127.0.0.1:8787/__scheduled?cron=0+3+*+*+*  (or 0+11,19+*+*+*)
 export default {
   fetch: app.fetch,
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
@@ -35,8 +38,11 @@ export default {
       console.log("Scheduled jobs paused (JOBS_PAUSED=true); skipping run");
       return;
     }
-    const analyticsProccessingJob = new AnalyticsProcessingJob();
-    await analyticsProccessingJob.handle(env, "daily");
+    // Analytics is a daily import; the plan checks also run between imports.
+    if (event.cron === DAILY_CRON) {
+      const analyticsProccessingJob = new AnalyticsProcessingJob();
+      await analyticsProccessingJob.handle(env, "daily");
+    }
     const subscriptionProcessingJob = new SubscriptionProcessingJob();
     await subscriptionProcessingJob.handle(env);
   },
