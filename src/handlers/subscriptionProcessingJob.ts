@@ -1,7 +1,12 @@
 import { OpenAPIRoute } from "chanfana";
 import { Env } from "../types";
 import { supabaseAdmin } from "../lib/supabase";
-import { catalogueFitsPlan, misfitMessage, tiers } from "@quicktalog/common";
+import {
+  catalogueFitsPlan,
+  misfitMessage,
+  tiers,
+  usagePeriodDays,
+} from "@quicktalog/common";
 import { revalidateData } from "../helpers";
 
 const PAGE_SIZE = 1000;
@@ -12,26 +17,23 @@ const REVALIDATE_BATCH_SIZE = 500;
 
 type SupabaseAdmin = ReturnType<typeof supabaseAdmin>;
 
-/** The current UTC month as `YYYY-MM-DD` days, end exclusive. */
-function currentMonthRange(now = new Date()) {
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-  return {
-    start: start.toISOString().slice(0, 10),
-    end: end.toISOString().slice(0, 10),
-  };
-}
-
-/** Sums this month's pageviews for one user, paging through analytics rows. */
-async function monthlyPageviews(supabase: SupabaseAdmin, userId: string) {
-  const { start, end } = currentMonthRange();
+/**
+ * Sums the pageviews of the user's current 30-day period, paging through analytics rows.
+ * The period is anchored on `created_at`, the same way private.usage_period_start() works
+ * it out for the app; private.* is not reachable over REST, so the shared helper mirrors it.
+ */
+async function periodPageviews(
+  supabase: SupabaseAdmin,
+  user: { id: string; created_at: string },
+) {
+  const { start, end } = usagePeriodDays(user.created_at);
   let total = 0;
   let from = 0;
   while (true) {
     const { data: rows, error } = await supabase
       .from("analytics")
       .select("pageviews")
-      .eq("user_id", userId)
+      .eq("user_id", user.id)
       .gte("day", start)
       .lt("day", end)
       .order("id")
@@ -125,7 +127,7 @@ export class SubscriptionProcessingJob extends OpenAPIRoute {
       // 1. Get all users that are not on the free tier
       const { data: users, error: userError } = await supabase
         .from("users")
-        .select("id, plan_id")
+        .select("id, plan_id, created_at")
         .neq("plan_id", tiers[0].priceId.month);
 
       if (userError) throw userError;
@@ -140,7 +142,7 @@ export class SubscriptionProcessingJob extends OpenAPIRoute {
           if (!matchedTier)
             throw new Error(`Tier not found for user ${user.id}`);
 
-          const pageviews = await monthlyPageviews(supabase, user.id);
+          const pageviews = await periodPageviews(supabase, user);
           const { traffic_limit } = matchedTier.features;
           if (pageviews < traffic_limit) {
             return { userId: user.id, action: "no_update_needed", names: [] };
