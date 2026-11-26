@@ -6,7 +6,8 @@
     "deploy": "wrangler deploy",
     "dev": "wrangler dev --test-scheduled",
     "start": "wrangler dev --test-scheduled",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "backfill:analytics": "tsx scripts/backfill-analytics.ts"
   },
   "dependencies": {
     "@quicktalog/common": "^1.80.0",
@@ -18,6 +19,7 @@
   },
   "devDependencies": {
     "@types/node": "22.13.0",
-    "@types/service-worker-mock": "^2.0.4"
+    "@types/service-worker-mock": "^2.0.4",
+    "tsx": "^4.23.15"
   }
 }

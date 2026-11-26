@@ -35,15 +35,27 @@ export default {
   fetch: app.fetch,
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
     if (jobsPaused(env)) {
-      console.log("Scheduled jobs paused (JOBS_PAUSED=true); skipping run");
+      console.warn("Scheduled jobs paused (JOBS_PAUSED=true); skipping run");
       return;
     }
-    // Analytics is a daily import; the plan checks also run between imports.
+    const failures: unknown[] = [];
+    // Analytics is a daily import and runs first, since the plan checks read its rows; the
+    // plan checks also run between imports. A failed import must not skip them.
     if (event.cron === DAILY_CRON) {
-      const analyticsProccessingJob = new AnalyticsProcessingJob();
-      await analyticsProccessingJob.handle(env, "daily");
+      try {
+        await new AnalyticsProcessingJob().handle(env);
+      } catch (error) {
+        failures.push(error);
+      }
     }
-    const subscriptionProcessingJob = new SubscriptionProcessingJob();
-    await subscriptionProcessingJob.handle(env);
+    try {
+      await new SubscriptionProcessingJob().handle(env);
+    } catch (error) {
+      failures.push(error);
+    }
+    // Rethrown so the run shows as failed in the Workers dashboard instead of passing silently.
+    if (failures.length > 0) {
+      throw new AggregateError(failures, "Scheduled job failed");
+    }
   },
 };
