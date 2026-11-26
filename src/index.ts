@@ -5,6 +5,7 @@ import { GeneratePdf } from "./handlers/generatePdf";
 import { Env } from "./types";
 import { AnalyticsProcessingJob } from "./handlers/analyticsProcessingJob";
 import { CleanupImages } from "./handlers/cleanupImages";
+import { AnalyticsBackfill } from "./handlers/analyticsBackfill";
 import { jobsPaused, secretMatches } from "./helpers";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -26,6 +27,7 @@ const openapi = fromHono(app, {
 
 openapi.get("/api/generate/pdf", GeneratePdf);
 openapi.get("/api/images/cleanup", CleanupImages);
+openapi.post("/api/analytics/backfill", AnalyticsBackfill);
 
 /** The first of `triggers.crons` in wrangler.jsonc; the other trigger runs the plan checks only. */
 const DAILY_CRON = "0 3 * * *";

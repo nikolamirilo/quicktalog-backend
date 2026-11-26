@@ -13,7 +13,7 @@ import {
 /**
  * Whole days imported again on every run, ending yesterday. Each day is overwritten with its
  * final totals on the runs after it ends, and an outage shorter than this heals by itself;
- * a longer one needs `npm run backfill:analytics`.
+ * a longer one needs `POST /api/analytics/backfill`.
  */
 const LOOKBACK_DAYS = 3;
 
