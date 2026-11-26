@@ -10,19 +10,47 @@ import { jobsPaused, secretMatches } from "./helpers";
 
 const app = new Hono<{ Bindings: Env }>();
 
-// Every HTTP route is an admin tool: require the bearer token. No CORS, since
-// browsers never call this worker.
+/**
+ * The admin token of a request: `Authorization: Bearer <token>`, or the password of Basic
+ * credentials (any user name), which is what a browser sends after its login prompt.
+ */
+function adminTokenOf(header: string): string | null {
+  if (header.startsWith("Bearer ")) return header.slice(7);
+  if (!header.startsWith("Basic ")) return null;
+  try {
+    const credentials = atob(header.slice(6));
+    const colon = credentials.indexOf(":");
+    return colon >= 0 ? credentials.slice(colon + 1) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Every HTTP route is an admin tool, the docs included: require the admin token. The Basic
+// challenge makes a browser ask for it, so the docs at / open in a browser. No CORS, since
+// no other site calls this worker.
 app.use("/*", async (c, next) => {
-  const header = c.req.header("authorization") ?? "";
-  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  const token = adminTokenOf(c.req.header("authorization") ?? "");
   if (!(await secretMatches(token, c.env.WORKER_ADMIN_TOKEN))) {
-    return c.json({ error: "Unauthorized" }, 401);
+    return c.json({ error: "Unauthorized" }, 401, {
+      "WWW-Authenticate": 'Basic realm="quicktalog-backend", charset="UTF-8"',
+    });
   }
   await next();
 });
 
 const openapi = fromHono(app, {
   docs_url: "/",
+  schema: {
+    info: { title: "Quicktalog backend", version: "1.0.0" },
+    security: [{ adminToken: [] }],
+  },
+});
+
+openapi.registry.registerComponent("securitySchemes", "adminToken", {
+  type: "http",
+  scheme: "bearer",
+  description: "WORKER_ADMIN_TOKEN",
 });
 
 openapi.get("/api/generate/pdf", GeneratePdf);
