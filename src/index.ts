@@ -5,6 +5,7 @@ import { GeneratePdf } from "./handlers/generatePdf";
 import { Env } from "./types";
 import { AnalyticsProcessingJob } from "./handlers/analyticsProcessingJob";
 import { CleanupImages } from "./handlers/cleanupImages";
+import { AnalyticsBackfill } from "./handlers/analyticsBackfill";
 import { jobsPaused, secretMatches } from "./helpers";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -26,6 +27,7 @@ const openapi = fromHono(app, {
 
 openapi.get("/api/generate/pdf", GeneratePdf);
 openapi.get("/api/images/cleanup", CleanupImages);
+openapi.post("/api/analytics/backfill", AnalyticsBackfill);
 
 /** The first of `triggers.crons` in wrangler.jsonc; the other trigger runs the plan checks only. */
 const DAILY_CRON = "0 3 * * *";
@@ -35,15 +37,27 @@ export default {
   fetch: app.fetch,
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
     if (jobsPaused(env)) {
-      console.log("Scheduled jobs paused (JOBS_PAUSED=true); skipping run");
+      console.warn("Scheduled jobs paused (JOBS_PAUSED=true); skipping run");
       return;
     }
-    // Analytics is a daily import; the plan checks also run between imports.
+    const failures: unknown[] = [];
+    // Analytics is a daily import and runs first, since the plan checks read its rows; the
+    // plan checks also run between imports. A failed import must not skip them.
     if (event.cron === DAILY_CRON) {
-      const analyticsProccessingJob = new AnalyticsProcessingJob();
-      await analyticsProccessingJob.handle(env, "daily");
+      try {
+        await new AnalyticsProcessingJob().handle(env);
+      } catch (error) {
+        failures.push(error);
+      }
     }
-    const subscriptionProcessingJob = new SubscriptionProcessingJob();
-    await subscriptionProcessingJob.handle(env);
+    try {
+      await new SubscriptionProcessingJob().handle(env);
+    } catch (error) {
+      failures.push(error);
+    }
+    // Rethrown so the run shows as failed in the Workers dashboard instead of passing silently.
+    if (failures.length > 0) {
+      throw new AggregateError(failures, "Scheduled job failed");
+    }
   },
 };
